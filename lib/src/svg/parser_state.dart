@@ -597,6 +597,7 @@ class _Elements {
     }
   }
 }
+//
 
 class _Paths {
   static Path circle(List<XmlEventAttribute> attributes) {
@@ -901,5 +902,42 @@ class SvgParserState {
     } else if (_unhandledElements.add(event.name)) {
       print('unhandled element ${event.name}; Picture key: $_key');
     }
+  }
+}
+
+class SvgParserStateRived extends SvgParserState {
+  SvgParserStateRived(Iterable<XmlEvent> events, String key, this.svgPathFuncs)
+      : super(events, key);
+
+  Map<String, _PathFunc> svgPathFuncs;
+
+  @override
+
+  /// Appends a [DrawableShape] to the [currentGroup].
+  bool addShape(XmlStartElementEvent event) {
+    final _PathFunc pathFunc = svgPathFuncs[event.name];
+    if (pathFunc == null) {
+      return false;
+    }
+
+    final DrawableParent parent = _parentDrawables.last.drawable;
+    final DrawableStyle parentStyle = parent.style;
+    final Path path = pathFunc(attributes);
+    final DrawableStyleable drawable = DrawableShape(
+      path,
+      parseStyle(
+        attributes,
+        _definitions,
+        path.getBounds(),
+        parentStyle,
+        defaultFillColor: colorBlack,
+      ),
+      transform: parseTransform(getAttribute(attributes, 'transform'))?.storage,
+    );
+    final bool isIri = checkForIri(drawable);
+    if (!_inDefs || !isIri) {
+      parent.children.add(drawable);
+    }
+    return true;
   }
 }
