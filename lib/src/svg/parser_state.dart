@@ -109,16 +109,16 @@ class _Elements {
       return null;
     }
     parserState._root = DrawableRoot(
-      viewBox,
-      <Drawable>[],
-      parserState._definitions,
-      parseStyle(
-        parserState.attributes,
+        viewBox,
+        <Drawable>[],
         parserState._definitions,
-        viewBox.viewBoxRect,
-        null,
-      ),
-    );
+        parseStyle(
+          parserState.attributes,
+          parserState._definitions,
+          viewBox.viewBoxRect,
+          null,
+        ),
+        attributes: parserState.attributes);
     parserState.addGroup(parserState._currentStartElement, parserState._root);
     return null;
   }
@@ -126,15 +126,15 @@ class _Elements {
   static Future<void> g(SvgParserState parserState) {
     final DrawableParent parent = parserState.currentGroup;
     final DrawableGroup group = DrawableGroup(
-      <Drawable>[],
-      parseStyle(
-        parserState.attributes,
-        parserState._definitions,
-        parserState.rootBounds,
-        parent.style,
-      ),
-      transform: parseTransform(parserState.attribute('transform'))?.storage,
-    );
+        <Drawable>[],
+        parseStyle(
+          parserState.attributes,
+          parserState._definitions,
+          parserState.rootBounds,
+          parent.style,
+        ),
+        transform: parseTransform(parserState.attribute('transform'))?.storage,
+        attributes: parserState.attributes);
     if (!parserState._inDefs) {
       parent.children.add(group);
     }
@@ -145,15 +145,15 @@ class _Elements {
   static Future<void> symbol(SvgParserState parserState) {
     final DrawableParent parent = parserState.currentGroup;
     final DrawableGroup group = DrawableGroup(
-      <Drawable>[],
-      parseStyle(
-        parserState.attributes,
-        parserState._definitions,
-        null,
-        parent.style,
-      ),
-      transform: parseTransform(parserState.attribute('transform'))?.storage,
-    );
+        <Drawable>[],
+        parseStyle(
+          parserState.attributes,
+          parserState._definitions,
+          null,
+          parent.style,
+        ),
+        transform: parseTransform(parserState.attribute('transform'))?.storage,
+        attributes: parserState.attributes);
     parserState.addGroup(parserState._currentStartElement, group);
     return null;
   }
@@ -183,10 +183,8 @@ class _Elements {
     final DrawableStyleable ref =
         parserState._definitions.getDrawable('url($xlinkHref)');
     final DrawableGroup group = DrawableGroup(
-      <Drawable>[ref.mergeStyle(style)],
-      style,
-      transform: transform.storage,
-    );
+        <Drawable>[ref.mergeStyle(style)], style,
+        transform: transform.storage, attributes: parserState.attributes);
 
     final bool isIri = parserState.checkForIri(group);
     if (!parserState._inDefs || !isIri) {
@@ -839,16 +837,17 @@ class SvgParserState {
     final DrawableStyle parentStyle = parent.style;
     final Path path = pathFunc(attributes);
     final DrawableStyleable drawable = DrawableShape(
-      path,
-      parseStyle(
-        attributes,
-        _definitions,
-        path.getBounds(),
-        parentStyle,
-        defaultFillColor: colorBlack,
-      ),
-      transform: parseTransform(getAttribute(attributes, 'transform'))?.storage,
-    );
+        path,
+        parseStyle(
+          attributes,
+          _definitions,
+          path.getBounds(),
+          parentStyle,
+          defaultFillColor: colorBlack,
+        ),
+        transform:
+            parseTransform(getAttribute(attributes, 'transform'))?.storage,
+        attributes: attributes);
     final bool isIri = checkForIri(drawable);
     if (!_inDefs || !isIri) {
       parent.children.add(drawable);
@@ -924,16 +923,17 @@ class SvgParserStateRived extends SvgParserState {
     final DrawableStyle parentStyle = parent.style;
     final Path path = pathFunc(attributes);
     final DrawableStyleable drawable = DrawableShape(
-      path,
-      parseStyle(
-        attributes,
-        _definitions,
-        path.getBounds(),
-        parentStyle,
-        defaultFillColor: colorBlack,
-      ),
-      transform: parseTransform(getAttribute(attributes, 'transform'))?.storage,
-    );
+        path,
+        parseStyle(
+          attributes,
+          _definitions,
+          path.getBounds(),
+          parentStyle,
+          defaultFillColor: colorBlack,
+        ),
+        transform:
+            parseTransform(getAttribute(attributes, 'transform'))?.storage,
+        attributes: attributes);
     final bool isIri = checkForIri(drawable);
     if (!_inDefs || !isIri) {
       parent.children.add(drawable);

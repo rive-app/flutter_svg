@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:meta/meta.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:vector_math/vector_math_64.dart';
+import 'package:xml/xml_events.dart';
 
 import 'render_picture.dart' as render_picture;
 import 'svg/parsers.dart' show affineMatrix;
@@ -842,13 +843,11 @@ class DrawableViewport {
 /// The root element of a drawable.
 class DrawableRoot implements DrawableParent {
   /// Creates a new [DrawableRoot].
-  const DrawableRoot(
-    this.viewport,
-    this.children,
-    this.definitions,
-    this.style, {
-    this.transform,
-  });
+  const DrawableRoot(this.viewport, this.children, this.definitions, this.style,
+      {this.transform, this.attributes});
+
+  /// The [XmlEventAttributes] supplied with this shape
+  final List<XmlEventAttribute> attributes;
 
   /// The expected coordinates used by child paths for drawing.
   final DrawableViewport viewport;
@@ -988,7 +987,8 @@ class DrawableRoot implements DrawableParent {
 /// `stroke`, or `fill`.
 class DrawableGroup implements DrawableStyleable, DrawableParent {
   /// Creates a new DrawableGroup.
-  const DrawableGroup(this.children, this.style, {this.transform});
+  const DrawableGroup(this.children, this.style,
+      {this.transform, this.attributes});
 
   @override
   final List<Drawable> children;
@@ -996,6 +996,9 @@ class DrawableGroup implements DrawableStyleable, DrawableParent {
   final DrawableStyle style;
   @override
   final Float64List transform;
+
+  /// The [XmlEventAttributes] supplied with this shape
+  final List<XmlEventAttribute> attributes;
 
   @override
   bool get hasDrawableContent => children != null && children.isNotEmpty;
@@ -1089,11 +1092,8 @@ class DrawableGroup implements DrawableStyleable, DrawableParent {
       return child;
     }).toList();
 
-    return DrawableGroup(
-      mergedChildren,
-      mergedStyle,
-      transform: transform,
-    );
+    return DrawableGroup(mergedChildren, mergedStyle,
+        transform: transform, attributes: attributes);
   }
 }
 
@@ -1188,7 +1188,7 @@ class DrawableRasterImage implements DrawableStyleable {
 /// Represents a drawing element that will be rendered to the canvas.
 class DrawableShape implements DrawableStyleable {
   /// Creates a new [DrawableShape].
-  const DrawableShape(this.path, this.style, {this.transform})
+  const DrawableShape(this.path, this.style, {this.transform, this.attributes})
       : assert(path != null),
         assert(style != null);
 
@@ -1200,6 +1200,9 @@ class DrawableShape implements DrawableStyleable {
 
   /// The [Path] describing this shape.
   final Path path;
+
+  /// The [XmlEventAttributes] supplied with this shape
+  final List<XmlEventAttribute> attributes;
 
   /// The bounds of this shape.
   Rect get bounds => path.getBounds();
@@ -1282,19 +1285,19 @@ class DrawableShape implements DrawableStyleable {
   DrawableShape mergeStyle(DrawableStyle newStyle) {
     assert(newStyle != null);
     return DrawableShape(
-      path,
-      DrawableStyle.mergeAndBlend(
-        style,
-        fill: newStyle.fill,
-        stroke: newStyle.stroke,
-        clipPath: newStyle.clipPath,
-        mask: newStyle.mask,
-        dashArray: newStyle.dashArray,
-        dashOffset: newStyle.dashOffset,
-        pathFillType: newStyle.pathFillType,
-        textStyle: newStyle.textStyle,
-      ),
-      transform: transform,
-    );
+        path,
+        DrawableStyle.mergeAndBlend(
+          style,
+          fill: newStyle.fill,
+          stroke: newStyle.stroke,
+          clipPath: newStyle.clipPath,
+          mask: newStyle.mask,
+          dashArray: newStyle.dashArray,
+          dashOffset: newStyle.dashOffset,
+          pathFillType: newStyle.pathFillType,
+          textStyle: newStyle.textStyle,
+        ),
+        transform: transform,
+        attributes: attributes);
   }
 }
