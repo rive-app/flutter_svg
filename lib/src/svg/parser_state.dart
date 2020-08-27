@@ -406,41 +406,46 @@ class _Elements {
 
   static Future<void> clipPath(SvgParserState parserState) {
     final String id = buildUrlIri(parserState.attributes);
+    final transform =
+        parseTransform(parserState.attribute('transform'))?.storage;
 
-    final List<Path> paths = <Path>[];
-    Path currentPath;
+    final clipPath = ClipPath(id, transform);
+
     for (XmlEvent event in parserState._readSubtree()) {
       if (event is XmlEndElementEvent) {
         continue;
       }
       if (event is XmlStartElementEvent) {
-        final _PathFunc pathFn = _svgPathFuncs[event.name];
+        final _PathFunc pathFunc = parserState.svgPathFuncs[event.name];
 
-        if (pathFn != null) {
-          final Path nextPath = applyTransformIfNeeded(
-            pathFn(parserState.attributes),
-            parserState.attributes,
-          );
-          nextPath.fillType =
-              parseFillRule(parserState.attributes, 'clip-rule');
-          if (currentPath != null &&
-              nextPath.fillType != currentPath.fillType) {
-            currentPath = nextPath;
-            paths.add(currentPath);
-          } else if (currentPath == null) {
-            currentPath = nextPath;
-            paths.add(currentPath);
-          } else {
-            currentPath.addPath(nextPath, Offset.zero);
-          }
+        if (pathFunc != null) {
+          // final DrawableParent parent = _parentDrawables.last.drawable;
+          // final DrawableStyle parentStyle = parent.style;
+          final Path path = pathFunc(parserState.attributes);
+          final DrawableShape drawable = DrawableShape(
+              path,
+              parseStyle(
+                parserState.attributes,
+                parserState.definitions,
+                path.getBounds(),
+                const DrawableStyle(fill: DrawablePaint.empty),
+                defaultFillColor: Color.fromARGB(0, 0, 0, 0),
+              ),
+              transform: parseTransform(
+                      getAttribute(parserState.attributes, 'transform'))
+                  ?.storage,
+              attributes: parserState.attributes);
+
+          clipPath.shapes.add(drawable);
         } else if (event.name == 'use') {
           final String xlinkHref = getHrefAttribute(parserState.attributes);
           final DrawableStyleable definitionDrawable =
               parserState._definitions.getDrawable('url($xlinkHref)');
 
           void extractPathsFromDrawable(Drawable target) {
+            // TODO: not really sure if this is still same
             if (target is DrawableShape) {
-              paths.add(target.path);
+              clipPath.shapes.add(target);
             } else if (target is DrawableGroup) {
               target.children.forEach(extractPathsFromDrawable);
             }
@@ -466,7 +471,7 @@ class _Elements {
         }
       }
     }
-    parserState._definitions.addClipPath(id, paths);
+    parserState._definitions.addClipPath(id, clipPath);
     return null;
   }
 
@@ -698,6 +703,12 @@ class SvgParserState {
   List<XmlEventAttribute> _currentAttributes;
   XmlStartElementEvent _currentStartElement;
 
+  /// get used svg path funcs
+  Map<String, _PathFunc> get svgPathFuncs => _svgPathFuncs;
+
+  /// get existing definitions
+  DrawableDefinitionServer get definitions => _definitions;
+
   /// The current depth of the reader in the XML hierarchy.
   int depth = 0;
 
@@ -828,7 +839,7 @@ class SvgParserState {
 
   /// Appends a [DrawableShape] to the [currentGroup].
   bool addShape(XmlStartElementEvent event) {
-    final _PathFunc pathFunc = _svgPathFuncs[event.name];
+    final _PathFunc pathFunc = svgPathFuncs[event.name];
     if (pathFunc == null) {
       return false;
     }
@@ -905,39 +916,16 @@ class SvgParserState {
 }
 
 class SvgParserStateRived extends SvgParserState {
-  SvgParserStateRived(Iterable<XmlEvent> events, String key, this.svgPathFuncs)
-      : super(events, key);
+  SvgParserStateRived(
+    Iterable<XmlEvent> events,
+    String key,
+    Map<String, _PathFunc> svgPathFuncs,
+  ) : super(events, key) {
+    _svgPathFuncs = svgPathFuncs;
+  }
 
-  Map<String, _PathFunc> svgPathFuncs;
+  Map<String, _PathFunc> _svgPathFuncs;
 
   @override
-
-  /// Appends a [DrawableShape] to the [currentGroup].
-  bool addShape(XmlStartElementEvent event) {
-    final _PathFunc pathFunc = svgPathFuncs[event.name];
-    if (pathFunc == null) {
-      return false;
-    }
-
-    final DrawableParent parent = _parentDrawables.last.drawable;
-    final DrawableStyle parentStyle = parent.style;
-    final Path path = pathFunc(attributes);
-    final DrawableStyleable drawable = DrawableShape(
-        path,
-        parseStyle(
-          attributes,
-          _definitions,
-          path.getBounds(),
-          parentStyle,
-          defaultFillColor: colorBlack,
-        ),
-        transform:
-            parseTransform(getAttribute(attributes, 'transform'))?.storage,
-        attributes: attributes);
-    final bool isIri = checkForIri(drawable);
-    if (!_inDefs || !isIri) {
-      parent.children.add(drawable);
-    }
-    return true;
-  }
+  Map<String, _PathFunc> get svgPathFuncs => _svgPathFuncs;
 }

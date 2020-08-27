@@ -312,7 +312,7 @@ Path applyTransformIfNeeded(Path path, List<XmlEventAttribute> attributes) {
 }
 
 /// Parses a `clipPath` element into a list of [Path]s.
-List<Path> parseClipPath(
+ClipPath parseClipPath(
   List<XmlEventAttribute> attributes,
   DrawableDefinitionServer definitions,
 ) {
