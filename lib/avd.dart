@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' show Picture;
 
 import 'package:flutter/services.dart' show AssetBundle;
-import 'package:flutter/widgets.dart';
+import 'package:flutter/widgets.dart' hide ClipPath;
 import 'package:xml/xml.dart';
 
 import './svg.dart';
@@ -75,7 +75,14 @@ class Avd {
         .map((XmlElement child) => parseAvdElement(child, viewBox.viewBoxRect))
         .toList();
     // todo : style on root
-    return DrawableRoot(viewBox, children, DrawableDefinitionServer(), null);
+    return DrawableRoot(
+      viewBox,
+      children,
+      DrawableDefinitionServer(),
+      null,
+      <ClipPath>[],
+      <Drawable>[],
+    );
   }
 }
 
@@ -162,5 +169,12 @@ DrawableRoot fromAvdString(String rawSvg, Rect size) {
       .map((XmlElement child) => parseAvdElement(child, size))
       .toList();
   // todo : style on root
-  return DrawableRoot(viewBox, children, DrawableDefinitionServer(), null);
+  return DrawableRoot(
+    viewBox,
+    children,
+    DrawableDefinitionServer(),
+    null,
+    <ClipPath>[],
+    <Drawable>[],
+  );
 }

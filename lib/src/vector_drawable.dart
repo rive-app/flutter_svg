@@ -56,6 +56,18 @@ abstract class DrawableParent implements DrawableStyleable {
   ///
   /// Each child may itself have children.
   List<Drawable> get children;
+
+  /// Holds clip paths
+  List<ClipPath> get clipPaths;
+
+  /// Holds clip paths
+  List<Drawable> get masks;
+
+  /// add a clip path to a parent, allows us to maintain the hierarchy
+  void addClipPath(ClipPath clipPath);
+
+  /// add a clip path to a parent, allows us to maintain the hierarchy
+  void addMask(Drawable mask);
 }
 
 class ClipPath {
@@ -855,6 +867,7 @@ class DrawableViewport {
 class DrawableRoot implements DrawableParent {
   /// Creates a new [DrawableRoot].
   const DrawableRoot(this.viewport, this.children, this.definitions, this.style,
+      this.clipPaths, this.masks,
       {this.transform, this.attributes});
 
   /// The [XmlEventAttributes] supplied with this shape
@@ -868,6 +881,22 @@ class DrawableRoot implements DrawableParent {
 
   @override
   final List<Drawable> children;
+
+  @override
+  final List<ClipPath> clipPaths;
+
+  @override
+  final List<Drawable> masks;
+
+  @override
+  void addClipPath(ClipPath clipPath) {
+    clipPaths.add(clipPath);
+  }
+
+  @override
+  void addMask(Drawable mask) {
+    masks.add(mask);
+  }
 
   /// Contains reusable definitions such as gradients and clipPaths.
   final DrawableDefinitionServer definitions;
@@ -989,6 +1018,8 @@ class DrawableRoot implements DrawableParent {
       mergedChildren,
       definitions,
       mergedStyle,
+      clipPaths,
+      masks,
       transform: transform,
     );
   }
@@ -998,11 +1029,16 @@ class DrawableRoot implements DrawableParent {
 /// `stroke`, or `fill`.
 class DrawableGroup implements DrawableStyleable, DrawableParent {
   /// Creates a new DrawableGroup.
-  const DrawableGroup(this.children, this.style,
+  const DrawableGroup(this.children, this.style, this.clipPaths, this.masks,
       {this.transform, this.attributes});
 
   @override
   final List<Drawable> children;
+
+  @override
+  final List<Drawable> masks;
+  @override
+  final List<ClipPath> clipPaths;
   @override
   final DrawableStyle style;
   @override
@@ -1103,8 +1139,18 @@ class DrawableGroup implements DrawableStyleable, DrawableParent {
       return child;
     }).toList();
 
-    return DrawableGroup(mergedChildren, mergedStyle,
+    return DrawableGroup(mergedChildren, mergedStyle, clipPaths, masks,
         transform: transform, attributes: attributes);
+  }
+
+  @override
+  void addClipPath(ClipPath clipPath) {
+    clipPaths.add(clipPath);
+  }
+
+  @override
+  void addMask(Drawable mask) {
+    masks.add(mask);
   }
 }
 

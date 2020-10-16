@@ -9,9 +9,14 @@ import 'avd/xml_parsers.dart';
 import 'vector_drawable.dart';
 
 class DrawableAvdRoot extends DrawableRoot {
-  const DrawableAvdRoot(DrawableViewport viewBox, List<Drawable> children,
-      DrawableDefinitionServer definitions, DrawableStyle style)
-      : super(viewBox, children, definitions, style);
+  const DrawableAvdRoot(
+    DrawableViewport viewBox,
+    List<Drawable> children,
+    DrawableDefinitionServer definitions,
+    DrawableStyle style,
+    List<ClipPath> clipPaths,
+    List<Drawable> masks,
+  ) : super(viewBox, children, definitions, style, clipPaths, masks);
 }
 
 /// An SVG Shape element that will be drawn to the canvas.
@@ -47,7 +52,7 @@ Drawable parseAvdElement(XmlElement el, Rect bounds) {
   }
   // TODO(dnfield): clipPath
   print('Unhandled element ${el.name.local}');
-  return const DrawableGroup(null, null);
+  return const DrawableGroup(null, null, null, null);
 }
 
 /// Parses an AVD <group> element.
@@ -74,6 +79,8 @@ Drawable parseAvdGroup(XmlElement el, Rect bounds) {
       fill: fill,
       groupOpacity: 1.0,
     ),
+    <ClipPath>[],
+    <Drawable>[],
     transform: transform?.storage,
   );
 }

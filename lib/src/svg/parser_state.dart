@@ -103,6 +103,8 @@ class _Elements {
               viewBox.viewBoxRect,
               null,
             ),
+            <ClipPath>[],
+            <Drawable>[],
           ),
         ),
       );
@@ -118,6 +120,8 @@ class _Elements {
           viewBox.viewBoxRect,
           null,
         ),
+        <ClipPath>[],
+        <Drawable>[],
         attributes: parserState.attributes);
     parserState.addGroup(parserState._currentStartElement, parserState._root);
     return null;
@@ -133,6 +137,8 @@ class _Elements {
           parserState.rootBounds,
           parent.style,
         ),
+        <ClipPath>[],
+        <Drawable>[],
         transform: parseTransform(parserState.attribute('transform'))?.storage,
         attributes: parserState.attributes);
     if (!parserState._inDefs) {
@@ -152,8 +158,11 @@ class _Elements {
           null,
           parent.style,
         ),
+        <ClipPath>[],
+        <Drawable>[],
         transform: parseTransform(parserState.attribute('transform'))?.storage,
         attributes: parserState.attributes);
+    parent.addMask(group);
     parserState.addGroup(parserState._currentStartElement, group);
     return null;
   }
@@ -183,8 +192,13 @@ class _Elements {
     final DrawableStyleable ref =
         parserState._definitions.getDrawable('url($xlinkHref)');
     final DrawableGroup group = DrawableGroup(
-        <Drawable>[ref.mergeStyle(style)], style,
-        transform: transform.storage, attributes: parserState.attributes);
+      <Drawable>[ref.mergeStyle(style)],
+      style,
+      <ClipPath>[],
+      <Drawable>[],
+      transform: transform.storage,
+      attributes: parserState.attributes,
+    );
 
     final bool isIri = parserState.checkForIri(group);
     if (!parserState._inDefs || !isIri) {
@@ -472,6 +486,7 @@ class _Elements {
       }
     }
     parserState._definitions.addClipPath(id, clipPath);
+    parserState.currentGroup.addClipPath(clipPath);
     return null;
   }
 
