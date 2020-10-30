@@ -80,14 +80,15 @@ class LateUse {
   final Matrix4 transform;
   final List<XmlEventAttribute> attributes;
   final List<Drawable> children;
+  final bool inDefs;
 
-  LateUse({
-    this.xlinkHref,
-    this.style,
-    this.transform,
-    this.attributes,
-    this.children,
-  });
+  LateUse(
+      {this.xlinkHref,
+      this.style,
+      this.transform,
+      this.attributes,
+      this.children,
+      this.inDefs});
 }
 
 class _Elements {
@@ -214,7 +215,8 @@ class _Elements {
           xlinkHref: xlinkHref,
           transform: transform,
           attributes: parserState.attributes,
-          children: parent.children));
+          children: parent.children,
+          inDefs: parserState._inDefs));
     } else {
       final DrawableGroup group = DrawableGroup(
         <Drawable>[ref.mergeStyle(style)],
@@ -737,7 +739,8 @@ class SvgParserState {
     this._key,
   )   : assert(events != null),
         _eventIterator = events.iterator,
-        _lateUses = <LateUse>[];
+        _lateUses = <LateUse>[],
+        _elementsStack = <String>[];
 
   final Iterator<XmlEvent> _eventIterator;
   final String _key;
@@ -748,6 +751,7 @@ class SvgParserState {
   List<XmlEventAttribute> _currentAttributes;
   XmlStartElementEvent _currentStartElement;
   final List<LateUse> _lateUses;
+  final List<String> _elementsStack;
 
   /// add a late use to the parser, to be deal with after parsing is done.
   void addLateUse(LateUse use) {
@@ -767,7 +771,7 @@ class SvgParserState {
     );
 
     final bool isIri = checkForIri(group);
-    if (!_inDefs || !isIri) {
+    if (!use.inDefs || !isIri) {
       use.children.add(group);
     }
   }
@@ -834,10 +838,12 @@ class SvgParserState {
         _currentStartElement = event;
         depth += 1;
         isSelfClosing = event.isSelfClosing;
+        _elementsStack.add(event.name);
       }
       yield event;
 
       if (isSelfClosing || event is XmlEndElementEvent) {
+        _elementsStack.removeLast();
         depth -= 1;
         assert(depth >= 0);
         _currentAttributes = <XmlEventAttribute>[];
@@ -915,6 +921,7 @@ class SvgParserState {
   /// Appends a [DrawableShape] to the [currentGroup].
   bool addShape(XmlStartElementEvent event) {
     final _PathFunc pathFunc = svgPathFuncs[event.name];
+
     if (pathFunc == null) {
       return false;
     }
@@ -935,10 +942,16 @@ class SvgParserState {
             parseTransform(getAttribute(attributes, 'transform'))?.storage,
         attributes: attributes);
     final bool isIri = checkForIri(drawable);
-    if (!_inDefs || !isIri) {
+
+    if (!_inDefs || !isIri || hasMaskParent) {
       parent.children.add(drawable);
     }
     return true;
+  }
+
+  /// check the elements stack and see if a mask attribute is anywhere in there
+  bool get hasMaskParent {
+    return _elementsStack.contains('mask');
   }
 
   /// Potentially handles a starting element.
