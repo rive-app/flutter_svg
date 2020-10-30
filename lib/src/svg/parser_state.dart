@@ -74,6 +74,22 @@ class _TextInfo {
   String toString() => '$runtimeType{$offset, $style, $transform}';
 }
 
+class LateUse {
+  final String xlinkHref;
+  final DrawableStyle style;
+  final Matrix4 transform;
+  final List<XmlEventAttribute> attributes;
+  final List<Drawable> children;
+
+  LateUse({
+    this.xlinkHref,
+    this.style,
+    this.transform,
+    this.attributes,
+    this.children,
+  });
+}
+
 class _Elements {
   static Future<void> svg(SvgParserState parserState) {
     final DrawableViewport viewBox = parseViewBox(parserState.attributes);
@@ -191,19 +207,30 @@ class _Elements {
 
     final DrawableStyleable ref =
         parserState._definitions.getDrawable('url($xlinkHref)');
-    final DrawableGroup group = DrawableGroup(
-      <Drawable>[ref.mergeStyle(style)],
-      style,
-      <ClipPath>[],
-      <Drawable>[],
-      transform: transform.storage,
-      attributes: parserState.attributes,
-    );
 
-    final bool isIri = parserState.checkForIri(group);
-    if (!parserState._inDefs || !isIri) {
-      parent.children.add(group);
+    if (ref == null) {
+      parserState.addLateUse(LateUse(
+          style: style,
+          xlinkHref: xlinkHref,
+          transform: transform,
+          attributes: parserState.attributes,
+          children: parent.children));
+    } else {
+      final DrawableGroup group = DrawableGroup(
+        <Drawable>[ref.mergeStyle(style)],
+        style,
+        <ClipPath>[],
+        <Drawable>[],
+        transform: transform.storage,
+        attributes: parserState.attributes,
+      );
+
+      final bool isIri = parserState.checkForIri(group);
+      if (!parserState._inDefs || !isIri) {
+        parent.children.add(group);
+      }
     }
+
     return null;
   }
 
@@ -705,9 +732,12 @@ class _SvgGroupTuple {
 /// Maintains state while pushing an [XmlPushReader] through the SVG tree.
 class SvgParserState {
   /// Creates a new [SvgParserState].
-  SvgParserState(Iterable<XmlEvent> events, this._key)
-      : assert(events != null),
-        _eventIterator = events.iterator;
+  SvgParserState(
+    Iterable<XmlEvent> events,
+    this._key,
+  )   : assert(events != null),
+        _eventIterator = events.iterator,
+        _lateUses = <LateUse>[];
 
   final Iterator<XmlEvent> _eventIterator;
   final String _key;
@@ -717,6 +747,35 @@ class SvgParserState {
   bool _inDefs = false;
   List<XmlEventAttribute> _currentAttributes;
   XmlStartElementEvent _currentStartElement;
+  final List<LateUse> _lateUses;
+
+  /// add a late use to the parser, to be deal with after parsing is done.
+  void addLateUse(LateUse use) {
+    _lateUses.add(use);
+  }
+
+  void _applyLateUse(LateUse use) {
+    final DrawableStyleable ref =
+        _definitions.getDrawable('url(${use.xlinkHref})');
+    final DrawableGroup group = DrawableGroup(
+      <Drawable>[ref.mergeStyle(use.style)],
+      use.style,
+      <ClipPath>[],
+      <Drawable>[],
+      transform: use.transform.storage,
+      attributes: use.attributes,
+    );
+
+    final bool isIri = checkForIri(group);
+    if (!_inDefs || !isIri) {
+      use.children.add(group);
+    }
+  }
+
+  /// add the late uses to the stuff!
+  void applyLateUses() {
+    _lateUses.forEach(_applyLateUse);
+  }
 
   /// get used svg path funcs
   Map<String, _PathFunc> get svgPathFuncs => _svgPathFuncs;
@@ -812,6 +871,7 @@ class SvgParserState {
         endElement(event);
       }
     }
+    applyLateUses();
     return _root;
   }
 
