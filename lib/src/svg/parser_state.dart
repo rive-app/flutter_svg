@@ -530,6 +530,10 @@ class _Elements {
       parseDouble(parserState.attribute('height', def: '0')),
     );
     final Image image = await resolveImage(href);
+    if (image == null) {
+      // early out if we dont have an image
+      return;
+    }
     final DrawableParent parent = parserState._parentDrawables.last.drawable;
     final DrawableStyle parentStyle = parent.style;
     final DrawableRasterImage drawable = DrawableRasterImage(

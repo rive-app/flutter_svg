@@ -220,8 +220,8 @@ Future<Image> resolveImage(String href) async {
         href.substring(commaLocation).replaceAll(_whitespacePattern, ''));
     return decodeImage(bytes);
   }
-
-  throw UnsupportedError('Could not resolve image href: $href');
+  print('Could not resolve image href: $href');
+  return null;
 }
 
 const ParagraphConstraints _infiniteParagraphConstraints = ParagraphConstraints(
