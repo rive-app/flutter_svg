@@ -663,6 +663,7 @@ enum GradientUnitMode {
 abstract class DrawableGradient {
   /// Initializes basic values.
   const DrawableGradient(
+    this.attributes,
     this.offsets,
     this.colors, {
     this.spreadMethod = TileMode.clamp,
@@ -687,6 +688,9 @@ abstract class DrawableGradient {
   /// The transform to apply to this gradient.
   final Float64List transform;
 
+  /// Attributes supplied to create this gradient
+  final List<XmlEventAttribute> attributes;
+
   /// Creates a [Shader] (i.e. a [Gradient]) from this object.
   Shader createShader(Rect bounds);
 }
@@ -696,6 +700,7 @@ abstract class DrawableGradient {
 class DrawableLinearGradient extends DrawableGradient {
   /// Creates a new [DrawableLinearGradient].
   const DrawableLinearGradient({
+    @required List<XmlEventAttribute> attributes,
     @required this.from,
     @required this.to,
     @required List<double> offsets,
@@ -704,6 +709,7 @@ class DrawableLinearGradient extends DrawableGradient {
     @required GradientUnitMode unitMode,
     Float64List transform,
   }) : super(
+          attributes,
           offsets,
           colors,
           spreadMethod: spreadMethod,
@@ -764,6 +770,7 @@ class DrawableLinearGradient extends DrawableGradient {
 class DrawableRadialGradient extends DrawableGradient {
   /// Creates a [DrawableRadialGradient].
   const DrawableRadialGradient({
+    @required List<XmlEventAttribute> attributes,
     @required this.center,
     @required this.radius,
     @required this.focal,
@@ -774,6 +781,7 @@ class DrawableRadialGradient extends DrawableGradient {
     @required GradientUnitMode unitMode,
     Float64List transform,
   }) : super(
+          attributes,
           offsets,
           colors,
           spreadMethod: spreadMethod,
