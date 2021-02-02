@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mockito/mockito.dart';
 
+import 'widgets.dart';
+
 Future<void> _checkWidgetAndGolden(Key key, String filename) async {
   final Finder widgetFinder = find.byKey(key);
   expect(widgetFinder, findsOneWidget);
@@ -64,23 +66,24 @@ void main() {
       (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      MediaQuery(
-        data: const MediaQueryData(size: Size(100, 100)),
-        child: Row(
-          key: key,
-          textDirection: TextDirection.ltr,
-          children: <Widget>[
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.fitWidth,
-                child: SvgPicture.string(
-                  svgStr,
-                  width: 20.0,
-                  height: 14.0,
+      TestWrapper(
+        child: MediaQuery(
+          data: const MediaQueryData(size: Size(100, 100)),
+          child: Row(
+            key: key,
+            children: <Widget>[
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.fitWidth,
+                  child: SvgPicture.string(
+                    svgStr,
+                    width: 20.0,
+                    height: 14.0,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -92,14 +95,16 @@ void main() {
   testWidgets('SvgPicture.string', (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      MediaQuery(
-        data: MediaQueryData.fromWindow(window),
-        child: RepaintBoundary(
-          key: key,
-          child: SvgPicture.string(
-            svgStr,
-            width: 100.0,
-            height: 100.0,
+      TestWrapper(
+        child: MediaQuery(
+          data: MediaQueryData.fromWindow(window),
+          child: RepaintBoundary(
+            key: key,
+            child: SvgPicture.string(
+              svgStr,
+              width: 100.0,
+              height: 100.0,
+            ),
           ),
         ),
       ),
@@ -112,12 +117,14 @@ void main() {
   testWidgets('SvgPicture natural size', (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      MediaQuery(
-        data: MediaQueryData.fromWindow(window),
-        child: Center(
-          key: key,
-          child: SvgPicture.string(
-            svgStr,
+      TestWrapper(
+        child: MediaQuery(
+          data: MediaQueryData.fromWindow(window),
+          child: Center(
+            key: key,
+            child: SvgPicture.string(
+              svgStr,
+            ),
           ),
         ),
       ),
@@ -130,12 +137,14 @@ void main() {
   testWidgets('SvgPicture clipped', (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      MediaQuery(
-        data: MediaQueryData.fromWindow(window),
-        child: Center(
-          key: key,
-          child: SvgPicture.string(
-            stickFigureSvgStr,
+      TestWrapper(
+        child: MediaQuery(
+          data: MediaQueryData.fromWindow(window),
+          child: Center(
+            key: key,
+            child: SvgPicture.string(
+              stickFigureSvgStr,
+            ),
           ),
         ),
       ),
@@ -148,17 +157,19 @@ void main() {
   testWidgets('SvgPicture.string rtl', (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      MediaQuery(
-        data: MediaQueryData.fromWindow(window),
-        child: RepaintBoundary(
-          key: key,
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: SvgPicture.string(
-              svgStr,
-              matchTextDirection: true,
-              width: 100.0,
-              height: 100.0,
+      TestWrapper(
+        child: MediaQuery(
+          data: MediaQueryData.fromWindow(window),
+          child: RepaintBoundary(
+            key: key,
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: SvgPicture.string(
+                svgStr,
+                matchTextDirection: true,
+                width: 100.0,
+                height: 100.0,
+              ),
             ),
           ),
         ),
@@ -172,12 +183,14 @@ void main() {
   testWidgets('SvgPicture.memory', (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      MediaQuery(
-        data: MediaQueryData.fromWindow(window),
-        child: RepaintBoundary(
-          key: key,
-          child: SvgPicture.memory(
-            svgBytes,
+      TestWrapper(
+        child: MediaQuery(
+          data: MediaQueryData.fromWindow(window),
+          child: RepaintBoundary(
+            key: key,
+            child: SvgPicture.memory(
+              svgBytes,
+            ),
           ),
         ),
       ),
@@ -194,13 +207,15 @@ void main() {
 
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      MediaQuery(
-        data: MediaQueryData.fromWindow(window),
-        child: RepaintBoundary(
-          key: key,
-          child: SvgPicture.asset(
-            'test.svg',
-            bundle: mockAsset,
+      TestWrapper(
+        child: MediaQuery(
+          data: MediaQueryData.fromWindow(window),
+          child: RepaintBoundary(
+            key: key,
+            child: SvgPicture.asset(
+              'test.svg',
+              bundle: mockAsset,
+            ),
           ),
         ),
       ),
@@ -217,8 +232,7 @@ void main() {
 
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
+      TestWrapper(
         child: MediaQuery(
           data: MediaQueryData.fromWindow(window),
           child: DefaultAssetBundle(
@@ -277,12 +291,14 @@ void main() {
       when(mockResponse.statusCode).thenReturn(200);
       final GlobalKey key = GlobalKey();
       await tester.pumpWidget(
-        MediaQuery(
-          data: MediaQueryData.fromWindow(window),
-          child: RepaintBoundary(
-            key: key,
-            child: SvgPicture.network(
-              'test.svg',
+        TestWrapper(
+          child: MediaQuery(
+            data: MediaQueryData.fromWindow(window),
+            child: RepaintBoundary(
+              key: key,
+              child: SvgPicture.network(
+                'test.svg',
+              ),
             ),
           ),
         ),
@@ -296,12 +312,14 @@ void main() {
       (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      RepaintBoundary(
-        key: key,
-        child: SvgPicture.string(
-          svgStr,
-          width: 100.0,
-          height: 100.0,
+      TestWrapper(
+        child: RepaintBoundary(
+          key: key,
+          child: SvgPicture.string(
+            svgStr,
+            width: 100.0,
+            height: 100.0,
+          ),
         ),
       ),
     );
@@ -315,10 +333,12 @@ void main() {
       expect(() async {
         when(mockResponse.statusCode).thenReturn(400);
         await tester.pumpWidget(
-          MediaQuery(
-            data: MediaQueryData.fromWindow(window),
-            child: SvgPicture.network(
-              'notFound.svg',
+          TestWrapper(
+            child: MediaQuery(
+              data: MediaQueryData.fromWindow(window),
+              child: SvgPicture.network(
+                'notFound.svg',
+              ),
             ),
           ),
         );
@@ -328,8 +348,7 @@ void main() {
 
   testWidgets('SvgPicture semantics', (WidgetTester tester) async {
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
+      TestWrapper(
         child: RepaintBoundary(
           child: SvgPicture.string(
             svgStr,
@@ -349,8 +368,7 @@ void main() {
 
   testWidgets('SvgPicture semantics - no label', (WidgetTester tester) async {
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
+      TestWrapper(
         child: RepaintBoundary(
           child: SvgPicture.string(
             svgStr,
@@ -368,8 +386,7 @@ void main() {
 
   testWidgets('SvgPicture semantics - exclude', (WidgetTester tester) async {
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
+      TestWrapper(
         child: RepaintBoundary(
           child: SvgPicture.string(
             svgStr,
@@ -390,13 +407,15 @@ void main() {
       (WidgetTester tester) async {
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      RepaintBoundary(
-        key: key,
-        child: SvgPicture.string(
-          svgStr,
-          width: 100.0,
-          height: 100.0,
-          color: const Color(0xFF990000),
+      TestWrapper(
+        child: RepaintBoundary(
+          key: key,
+          child: SvgPicture.string(
+            svgStr,
+            width: 100.0,
+            height: 100.0,
+            color: const Color(0xFF990000),
+          ),
         ),
       ),
     );
@@ -422,13 +441,15 @@ void main() {
 </svg>''';
     final GlobalKey key = GlobalKey();
     await tester.pumpWidget(
-      RepaintBoundary(
-        key: key,
-        child: SvgPicture.string(
-          svgData,
-          width: 100.0,
-          height: 100.0,
-          color: const Color(0xFF990000),
+      TestWrapper(
+        child: RepaintBoundary(
+          key: key,
+          child: SvgPicture.string(
+            svgData,
+            width: 100.0,
+            height: 100.0,
+            color: const Color(0xFF990000),
+          ),
         ),
       ),
     );
