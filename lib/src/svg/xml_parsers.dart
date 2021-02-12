@@ -11,9 +11,18 @@ import '../vector_drawable.dart';
 import 'colors.dart';
 import 'parsers.dart';
 
+/// If we cannot find a size for the svg root, we need to clamp it to something
+/// We chose 600.
+const double fallbackSize = 600;
+
 double _parseRawWidthHeight(String raw) {
+  if (raw.endsWith('pt')) {
+    // i read somewhere that pt = 1.33pt, this makes no sense to me
+    // but seems to work for the linux.svg
+    return (double.tryParse(raw.replaceAll('pt', '')) ?? fallbackSize) * 1.33;
+  }
   if (raw == '100%' || raw == '') {
-    return double.infinity;
+    return fallbackSize;
   }
   assert(() {
     final RegExp notDigits = RegExp(r'[^\d\.]');
@@ -27,7 +36,7 @@ double _parseRawWidthHeight(String raw) {
     }
     return true;
   }());
-  return double.tryParse(raw.replaceAll('px', '')) ?? double.infinity;
+  return double.tryParse(raw.replaceAll('px', '')) ?? fallbackSize;
 }
 
 /// yet another attempt at getting some dimension info out of the svg
