@@ -16,27 +16,7 @@ import 'parsers.dart';
 const double fallbackSize = 600;
 
 double _parseRawWidthHeight(String raw) {
-  if (raw.endsWith('pt')) {
-    // i read somewhere that pt = 1.33pt, this makes no sense to me
-    // but seems to work for the linux.svg
-    return (double.tryParse(raw.replaceAll('pt', '')) ?? fallbackSize) * 1.33;
-  }
-  if (raw == '100%' || raw == '') {
-    return fallbackSize;
-  }
-  assert(() {
-    final RegExp notDigits = RegExp(r'[^\d\.]');
-    if (!raw.endsWith('px') && raw.contains(notDigits)) {
-      print(
-          'Warning: Flutter SVG only supports the following formats for `width` and `height` on the SVG root:\n'
-          '  width="100%"\n'
-          '  width="100px"\n'
-          '  width="100" (where the number will be treated as pixels).\n'
-          'The supplied value ($raw) will be discarded and treated as if it had not been specified.');
-    }
-    return true;
-  }());
-  return double.tryParse(raw.replaceAll('px', '')) ?? fallbackSize;
+  return parseDouble(raw, tryParse: true, fallback: fallbackSize);
 }
 
 /// yet another attempt at getting some dimension info out of the svg
