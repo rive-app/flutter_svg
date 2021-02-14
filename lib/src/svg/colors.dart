@@ -16,6 +16,10 @@ Color parseColor(String colorString) {
     return null;
   }
 
+  if (colorString == 'inherit') {
+    return const Color(0xFFFFFFFF);
+  }
+
   // handle hex colors e.g. #fff or #ffffff.  This supports #RRGGBBAA
   if (colorString[0] == '#') {
     if (colorString.length == 4) {
