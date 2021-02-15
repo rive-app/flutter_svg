@@ -5,14 +5,14 @@ import 'package:flutter_svg/src/picture_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
 
+import 'widgets.dart';
+
 class MockPictureStreamCompleter extends PictureStreamCompleter {}
 
 void main() {
   PictureCache cache;
 
-  setUp(() {
-    cache = PictureCache();
-  });
+  setUp(() => cache = PictureCache());
 
   testWidgets('Precache test', (WidgetTester tester) async {
     const String svgString = '''<svg viewBox="0 0 10 10">
@@ -22,8 +22,7 @@ void main() {
 <rect x="1" y="1" width="6" height="5" fill="black" />
 </svg>''';
     await tester.pumpWidget(
-      const Directionality(
-        textDirection: TextDirection.ltr,
+      const TestWrapper(
         child: Text('test_text'),
       ),
     );
@@ -39,16 +38,14 @@ void main() {
     expect(PictureProvider.cacheCount, 1);
 
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
+      TestWrapper(
         child: SvgPicture.string(svgString),
       ),
     );
     expect(PictureProvider.cacheCount, 1);
 
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
+      TestWrapper(
         child: SvgPicture.string(svgString2),
       ),
     );
@@ -77,8 +74,7 @@ void main() {
   testWidgets('Precache with error', (WidgetTester tester) async {
     const String svgString = '<svg';
     await tester.pumpWidget(
-      const Directionality(
-        textDirection: TextDirection.ltr,
+      const TestWrapper(
         child: Text('test_text'),
       ),
     );
