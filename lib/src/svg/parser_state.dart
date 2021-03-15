@@ -100,7 +100,7 @@ class _Elements {
         context: ErrorDescription('in _Element.svg'),
       ));
       parserState._parentDrawables.addLast(
-        _SvgGroupTuple(
+        SvgGroupTuple(
           'svg',
           DrawableGroup(
             id,
@@ -439,7 +439,7 @@ class _Elements {
         continue;
       }
       if (event is XmlStartElementEvent) {
-        final _PathFunc? pathFn = _svgPathFuncs[event.name];
+        final _PathFunc? pathFn = parserState.getSvgPathFunc(event.name);
 
         if (pathFn != null) {
           final Path nextPath = applyTransformIfNeeded(
@@ -710,8 +710,8 @@ class _Paths {
   }
 }
 
-class _SvgGroupTuple {
-  _SvgGroupTuple(this.name, this.drawable);
+class SvgGroupTuple {
+  SvgGroupTuple(this.name, this.drawable);
 
   final String name;
   final DrawableParent? drawable;
@@ -731,7 +731,7 @@ class SvgParserState {
   final String? _key;
   final bool _warningsAsErrors;
   final DrawableDefinitionServer _definitions = DrawableDefinitionServer();
-  final Queue<_SvgGroupTuple> _parentDrawables = ListQueue<_SvgGroupTuple>(10);
+  final Queue<SvgGroupTuple> _parentDrawables = ListQueue<SvgGroupTuple>(10);
   DrawableRoot? _root;
   bool _inDefs = false;
   List<XmlEventAttribute>? _currentAttributes;
@@ -798,13 +798,13 @@ class SvgParserState {
   }
 
   /// Drive the [XmlTextReader] to EOF and produce a [DrawableRoot].
-  Future<DrawableRoot> parse() async {
+  Future<T extends DrawableRoot> parse() async {
     for (XmlEvent event in _readSubtree()) {
       if (event is XmlStartElementEvent) {
         if (startElement(event)) {
           continue;
         }
-        final _ParseFunc? parseFunc = _svgElementParsers[event.name];
+        final _ParseFunc? parseFunc = getSvgElementParsers(event.name);
         await parseFunc?.call(this, _warningsAsErrors);
         if (parseFunc == null) {
           if (!event.isSelfClosing) {
@@ -858,13 +858,13 @@ class SvgParserState {
 
   /// Appends a group to the collection.
   void addGroup(XmlStartElementEvent event, DrawableParent? drawable) {
-    _parentDrawables.addLast(_SvgGroupTuple(event.name, drawable));
+    _parentDrawables.addLast(SvgGroupTuple(event.name, drawable));
     checkForIri(drawable);
   }
 
   /// Appends a [DrawableShape] to the [currentGroup].
   bool addShape(XmlStartElementEvent event) {
-    final _PathFunc? pathFunc = _svgPathFuncs[event.name];
+    final _PathFunc? pathFunc = getSvgPathFunc(event.name);
     if (pathFunc == null) {
       return false;
     }
@@ -943,6 +943,29 @@ class SvgParserState {
       ));
     } else if (_unhandledElements.add(event.name)) {
       print(errorMessage);
+    }
+  }
+
+  /// overwrite to customize how to parse paths
+  _PathFunc? getSvgPathFunc(String name) => _svgPathFuncs[name];
+
+  /// overwrite to customize how to parse elements
+  _ParseFunc? getSvgElementParsers(String name) => _svgElementParsers[name];
+  
+  /// give access to the root element.
+  DrawableRoot? get root => _root;
+  set root(DrawableRoot? root) => _root =root;
+  
+  /// give access to the current key element.
+  String? get key => _key;
+  DrawableDefinitionServer get definitions => _definitions;
+  Queue<SvgGroupTuple> get parentDrawables => _parentDrawables;
+  XmlStartElementEvent? get currentStartElement => _currentStartElement;
+  bool get inDefs => _inDefs;
+
+  Iterable<XmlEvent> readSubtree() sync* {
+    for (XmlEvent element in _readSubtree()) {
+      yield element;
     }
   }
 }
