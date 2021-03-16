@@ -89,6 +89,31 @@ Offset _parseCurrentOffset(SvgParserState parserState, Offset? lastOffset) {
   );
 }
 
+String? _getAttributeWithBackup(
+  List<XmlEventAttribute> el,
+  List<XmlEventAttribute>? backup,
+  String name, {
+  String? namespace,
+  String? def = '',
+  bool checkStyle = true,
+}) {
+  return getAttribute(
+    el,
+    name,
+    def: (backup == null)
+        ? def
+        : getAttribute(
+            backup,
+            name,
+            def: def,
+            namespace: namespace,
+            checkStyle: checkStyle,
+          ),
+    namespace: namespace,
+    checkStyle: checkStyle,
+  )!;
+}
+
 class _TextInfo {
   const _TextInfo(
     this.style,
@@ -123,6 +148,31 @@ class LateUse {
     List<Drawable>? children,
   })  : children = children ?? <Drawable>[],
         attributes = attributes ?? <XmlEventAttribute>[];
+}
+
+class GradientDefinition {
+  final String href;
+  final bool isSelfClosing;
+  final List<XmlEventAttribute> attributes;
+  String get url => 'url($href)';
+
+  GradientDefinition(this.href, this.isSelfClosing, this.attributes);
+}
+
+class LinearGradientDefinition extends GradientDefinition {
+  LinearGradientDefinition({
+    required String href,
+    required bool isSelfClosing,
+    required List<XmlEventAttribute> attributes,
+  }) : super(href, isSelfClosing, attributes);
+}
+
+class RadialGradientDefinition extends GradientDefinition {
+  RadialGradientDefinition({
+    required String href,
+    required bool isSelfClosing,
+    required List<XmlEventAttribute> attributes,
+  }) : super(href, isSelfClosing, attributes);
 }
 
 class _Elements {
@@ -317,33 +367,51 @@ class _Elements {
     SvgParserState parserState,
     bool warningsAsErrors,
   ) {
+    final bool elementSelfClosing =
+        parserState._currentStartElement!.isSelfClosing;
+    String? href;
+    if (elementSelfClosing) {
+      href = getHrefAttribute(parserState.attributes);
+      final DrawableGradient? ref =
+          parserState._definitions.getGradient<DrawableGradient>('url($href)');
+      if (ref == null) {
+        // TODO: check on href and attributes
+        parserState._addLateGradient(RadialGradientDefinition(
+            href: href!,
+            isSelfClosing: elementSelfClosing,
+            attributes: parserState.attributes!));
+        return null;
+      }
+    }
+
+    addRadialGradient(
+        parserState,
+        RadialGradientDefinition(
+            href: href!,
+            isSelfClosing: elementSelfClosing,
+            attributes: parserState.attributes!));
+    return null;
+  }
+
+  static void addRadialGradient(
+      SvgParserState parserState, RadialGradientDefinition radialGradient) {
     final String? gradientUnits = getAttribute(
-      parserState.attributes,
+      radialGradient.attributes,
       'gradientUnits',
       def: null,
     );
     bool isObjectBoundingBox = gradientUnits != 'userSpaceOnUse';
 
-    final String? rawCx = parserState.attribute('cx', def: '50%');
-    final String? rawCy = parserState.attribute('cy', def: '50%');
-    final String? rawR = parserState.attribute('r', def: '50%');
-    final String? rawFx = parserState.attribute('fx', def: rawCx);
-    final String? rawFy = parserState.attribute('fy', def: rawCy);
-    final TileMode spreadMethod = parseTileMode(parserState.attributes);
-    final String id = buildUrlIri(parserState.attributes);
-    final Matrix4? originalTransform = parseTransform(
-      parserState.attribute('gradientTransform', def: null),
-    );
-
     final List<double> offsets = <double>[];
     final List<Color> colors = <Color>[];
+    DrawableGradient? ref;
 
-    if (parserState._currentStartElement!.isSelfClosing) {
-      final String? href = getHrefAttribute(parserState.attributes);
-      final DrawableGradient? ref =
+    if (radialGradient.isSelfClosing) {
+      final String? href = getHrefAttribute(radialGradient.attributes);
+      ref =
           parserState._definitions.getGradient<DrawableGradient>('url($href)');
       if (ref == null) {
-        reportMissingDef(parserState._key, href, 'radialGradient');
+        return;
       } else {
         if (gradientUnits == null) {
           isObjectBoundingBox =
@@ -353,8 +421,52 @@ class _Elements {
         offsets.addAll(ref.offsets!);
       }
     } else {
+      // NOTE: only works if this is done on first pass, which it *should* be
       parseStops(parserState, colors, offsets);
     }
+
+    final String? rawCx = _getAttributeWithBackup(
+      radialGradient.attributes,
+      ref?.attributes,
+      'cx',
+      def: '50%',
+    );
+    final String? rawCy = _getAttributeWithBackup(
+      radialGradient.attributes,
+      ref?.attributes,
+      'cy',
+      def: '50%',
+    );
+    final String? rawR = _getAttributeWithBackup(
+      radialGradient.attributes,
+      ref?.attributes,
+      'r',
+      def: '50%',
+    );
+    final String? rawFx = _getAttributeWithBackup(
+      radialGradient.attributes,
+      ref?.attributes,
+      'fx',
+      def: rawCx,
+    );
+    final String? rawFy = _getAttributeWithBackup(
+      radialGradient.attributes,
+      ref?.attributes,
+      'fy',
+      def: rawCy,
+    );
+
+    final TileMode spreadMethod = parseTileMode(radialGradient.attributes);
+    final String id = buildUrlIri(radialGradient.attributes);
+    final Matrix4? originalTransform = parseTransform(
+      _getAttributeWithBackup(
+        radialGradient.attributes,
+        ref?.attributes,
+        'gradientTransform',
+        // TODO: does this work?
+        def: null,
+      ),
+    );
 
     late double cx, cy, r, fx, fy;
     if (isObjectBoundingBox) {
@@ -387,9 +499,10 @@ class _Elements {
           : parseDouble(rawFy)!;
     }
 
-    parserState._definitions.addGradient(
+    parserState.addGradient(
       id,
       DrawableRadialGradient(
+        attributes: radialGradient.attributes,
         center: Offset(cx, cy),
         radius: r,
         focal: (fx != cx || fy != cy) ? Offset(fx, fy) : Offset(cx, cy),
@@ -403,30 +516,105 @@ class _Elements {
         transform: originalTransform?.storage,
       ),
     );
-    return null;
+    return;
   }
 
   static Future<void>? linearGradient(
       SvgParserState parserState, bool warningsAsErrors) {
-    final String? gradientUnits = getAttribute(
-      parserState.attributes,
+    final bool elementSelfClosing =
+        parserState._currentStartElement!.isSelfClosing;
+    String? href;
+    if (elementSelfClosing) {
+      href = getHrefAttribute(parserState.attributes);
+      final DrawableGradient? ref =
+          parserState._definitions.getGradient<DrawableGradient>('url($href)');
+      if (ref == null) {
+        // TODO: href and attrs
+        parserState._addLateGradient(LinearGradientDefinition(
+            href: href!,
+            isSelfClosing: elementSelfClosing,
+            attributes: parserState.attributes!));
+        return null;
+      }
+    }
+    addLinearGradient(
+        parserState,
+        LinearGradientDefinition(
+            href: href!,
+            isSelfClosing: elementSelfClosing,
+            attributes: parserState.attributes!));
+    return null;
+  }
+
+  static void addLinearGradient(
+      SvgParserState parserState, LinearGradientDefinition linearGradient) {
+    final List<Color> colors = <Color>[];
+    final List<double> offsets = <double>[];
+    bool isObjectBoundingBox = true;
+    DrawableGradient? ref;
+
+    if (linearGradient.isSelfClosing) {
+      ref = parserState._definitions
+          .getGradient<DrawableGradient>('url(${linearGradient.href})');
+      if (ref == null) {
+        // we had one chance.
+        return null;
+      } else {
+        isObjectBoundingBox =
+            ref.unitMode == GradientUnitMode.objectBoundingBox;
+        colors.addAll(ref.colors!);
+        offsets.addAll(ref.offsets!);
+      }
+    } else {
+      // NOTE: awkward, only works if we havent moved the parserState on from
+      // the linear gradients original definiton.
+      parseStops(parserState, colors, offsets);
+    }
+
+    final String? gradientUnits = _getAttributeWithBackup(
+      linearGradient.attributes,
+      ref?.attributes,
       'gradientUnits',
       def: null,
     );
-    bool isObjectBoundingBox = gradientUnits != 'userSpaceOnUse';
-
-    final String? x1 = parserState.attribute('x1', def: '0%');
-    final String? x2 = parserState.attribute('x2', def: '100%');
-    final String? y1 = parserState.attribute('y1', def: '0%');
-    final String? y2 = parserState.attribute('y2', def: '0%');
-    final String id = buildUrlIri(parserState.attributes);
-    final Matrix4? originalTransform = parseTransform(
-      parserState.attribute('gradientTransform', def: null),
+    if (gradientUnits != null)
+      isObjectBoundingBox = gradientUnits != 'userSpaceOnUse';
+    final String? x1 = _getAttributeWithBackup(
+      linearGradient.attributes,
+      ref?.attributes,
+      'x1',
+      def: '0%',
     );
-    final TileMode spreadMethod = parseTileMode(parserState.attributes);
+    final String? x2 = _getAttributeWithBackup(
+      linearGradient.attributes,
+      ref?.attributes,
+      'x2',
+      def: '0%',
+    );
+    final String? y1 = _getAttributeWithBackup(
+      linearGradient.attributes,
+      ref?.attributes,
+      'y1',
+      def: '0%',
+    );
+    final String? y2 = _getAttributeWithBackup(
+      linearGradient.attributes,
+      ref?.attributes,
+      'y2',
+      def: '0%',
+    );
 
-    final List<Color> colors = <Color>[];
-    final List<double> offsets = <double>[];
+    final String id = buildUrlIri(linearGradient.attributes);
+    final Matrix4? originalTransform = parseTransform(
+      _getAttributeWithBackup(
+        linearGradient.attributes,
+        ref?.attributes,
+        'gradientTransform',
+        def: null,
+      ),
+    );
+    final TileMode spreadMethod = parseTileMode(linearGradient.attributes);
+
     if (parserState._currentStartElement!.isSelfClosing) {
       final String? href = getHrefAttribute(parserState.attributes);
       final DrawableGradient? ref =
@@ -479,9 +667,10 @@ class _Elements {
       );
     }
 
-    parserState._definitions.addGradient(
+    parserState.addGradient(
       id,
       DrawableLinearGradient(
+        attributes: linearGradient.attributes,
         from: fromOffset,
         to: toOffset,
         colors: colors,
@@ -504,7 +693,6 @@ class _Elements {
         parseTransform(parserState.attribute('transform'))?.storage;
 
     final clipPath = ClipPath(id, transform);
-    Path? currentPath;
     for (XmlEvent event in parserState._readSubtree()) {
       if (event is XmlEndElementEvent) {
         continue;
@@ -1039,7 +1227,8 @@ class SvgParserState {
       : assert(events != null),
         _eventIterator = events.iterator,
         _lateUses = <LateUse>[],
-        _elementsStack = <String>[];
+        _elementsStack = <String>[],
+        _lateGradients = <String, List<GradientDefinition>>{};
 
   final Iterator<XmlEvent> _eventIterator;
   final String? _key;
@@ -1052,6 +1241,7 @@ class SvgParserState {
   XmlStartElementEvent? _currentStartElement;
   final List<LateUse> _lateUses;
   final List<String> _elementsStack;
+  final Map<String, List<GradientDefinition>> _lateGradients;
 
   /// The current depth of the reader in the XML hierarchy.
   int depth = 0;
@@ -1314,5 +1504,26 @@ class SvgParserState {
     for (XmlEvent element in _readSubtree()) {
       yield element;
     }
+  }
+
+  /// Add a [DrawableGradient] to the pre-defined collection by [id].
+  void addGradient(String id, DrawableGradient gradient) {
+    _definitions.addGradient(id, gradient);
+    if (_lateGradients.containsKey(id)) {
+      _lateGradients[id]?.forEach((element) {
+        if (element is LinearGradientDefinition) {
+          _Elements.addLinearGradient(this, element);
+        } else if (element is RadialGradientDefinition) {
+          _Elements.addRadialGradient(this, element);
+        }
+      });
+    }
+  }
+
+  void _addLateGradient(GradientDefinition definition) {
+    if (!_lateGradients.containsKey(definition.url)) {
+      _lateGradients[definition.url] = <GradientDefinition>[];
+    }
+    _lateGradients[definition.url]!.add(definition);
   }
 }

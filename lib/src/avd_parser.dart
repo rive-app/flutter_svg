@@ -49,7 +49,7 @@ Drawable parseAvdElement(XmlElement el, Rect bounds) {
   }
   // TODO(dnfield): clipPath
   print('Unhandled element ${el.name.local}');
-  return const DrawableGroup('', null, null);
+  return DrawableGroup('', null, null);
 }
 
 /// Parses an AVD <group> element.

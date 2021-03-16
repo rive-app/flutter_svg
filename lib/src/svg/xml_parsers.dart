@@ -184,6 +184,10 @@ DrawablePaint _getDefinitionPaint(
   DrawableDefinitionServer definitions,
   Rect bounds, {
   double? opacity,
+  double? strokeWidth,
+  double? strokeMiterLimit,
+  StrokeCap? strokeCap,
+  StrokeJoin? strokeJoin,
 }) {
   final Shader? shader = definitions.getShader(iri, bounds);
   if (shader == null) {
@@ -194,6 +198,10 @@ DrawablePaint _getDefinitionPaint(
     paintingStyle,
     shader: shader,
     color: opacity != null ? Color.fromRGBO(255, 255, 255, opacity) : null,
+    strokeCap: strokeCap,
+    strokeJoin: strokeJoin,
+    strokeMiterLimit: strokeMiterLimit,
+    strokeWidth: strokeWidth,
   );
 }
 
@@ -217,16 +225,6 @@ DrawablePaint? parseStroke(
     opacity *= parseDouble(rawOpacity)!.clamp(0.0, 1.0);
   }
 
-  if (rawStroke.startsWith('url')) {
-    return _getDefinitionPaint(
-      key,
-      PaintingStyle.stroke,
-      rawStroke,
-      definitions,
-      bounds!,
-      opacity: opacity,
-    );
-  }
   if (rawStroke == '' && DrawablePaint.isEmpty(parentStroke)) {
     return null;
   }
@@ -239,29 +237,49 @@ DrawablePaint? parseStroke(
   final String? rawMiterLimit = getAttribute(attributes, 'stroke-miterlimit');
   final String? rawStrokeWidth = getAttribute(attributes, 'stroke-width');
 
+  final StrokeCap strokeCap = rawStrokeCap == 'null'
+      ? parentStroke?.strokeCap ?? StrokeCap.butt
+      : StrokeCap.values.firstWhere(
+          (StrokeCap sc) => sc.toString() == 'StrokeCap.$rawStrokeCap',
+          orElse: () => StrokeCap.butt,
+        );
+  final StrokeJoin strokeJoin = rawLineJoin == ''
+      ? parentStroke?.strokeJoin ?? StrokeJoin.miter
+      : StrokeJoin.values.firstWhere(
+          (StrokeJoin sj) => sj.toString() == 'StrokeJoin.$rawLineJoin',
+          orElse: () => StrokeJoin.miter,
+        );
+  final double? strokeMiterLimit = rawMiterLimit == ''
+      ? parentStroke?.strokeMiterLimit ?? 4.0
+      : parseDouble(rawMiterLimit);
+  final double? strokeWidth = rawStrokeWidth == ''
+      ? parentStroke?.strokeWidth ?? 1.0
+      : parseDouble(rawStrokeWidth);
+
+  if (rawStroke.startsWith('url')) {
+    return _getDefinitionPaint(
+      key,
+      PaintingStyle.stroke,
+      rawStroke,
+      definitions,
+      bounds!,
+      opacity: opacity,
+      strokeCap: strokeCap,
+      strokeJoin: strokeJoin,
+      strokeMiterLimit: strokeMiterLimit,
+      strokeWidth: strokeWidth,
+    );
+  }
+
   final DrawablePaint paint = DrawablePaint(
     PaintingStyle.stroke,
     color: rawStroke == ''
         ? (parentStroke?.color ?? colorBlack).withOpacity(opacity)
         : parseColor(rawStroke)!.withOpacity(opacity),
-    strokeCap: rawStrokeCap == 'null'
-        ? parentStroke?.strokeCap ?? StrokeCap.butt
-        : StrokeCap.values.firstWhere(
-            (StrokeCap sc) => sc.toString() == 'StrokeCap.$rawStrokeCap',
-            orElse: () => StrokeCap.butt,
-          ),
-    strokeJoin: rawLineJoin == ''
-        ? parentStroke?.strokeJoin ?? StrokeJoin.miter
-        : StrokeJoin.values.firstWhere(
-            (StrokeJoin sj) => sj.toString() == 'StrokeJoin.$rawLineJoin',
-            orElse: () => StrokeJoin.miter,
-          ),
-    strokeMiterLimit: rawMiterLimit == ''
-        ? parentStroke?.strokeMiterLimit ?? 4.0
-        : parseDouble(rawMiterLimit),
-    strokeWidth: rawStrokeWidth == ''
-        ? parentStroke?.strokeWidth ?? 1.0
-        : parseDouble(rawStrokeWidth),
+    strokeCap: strokeCap,
+    strokeJoin: strokeJoin,
+    strokeMiterLimit: strokeMiterLimit,
+    strokeWidth: strokeWidth,
   );
   return paint;
 }
