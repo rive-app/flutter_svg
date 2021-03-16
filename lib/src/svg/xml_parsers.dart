@@ -11,23 +11,12 @@ import '../vector_drawable.dart';
 import 'colors.dart';
 import 'parsers.dart';
 
+/// If we cannot find a size for the svg root, we need to clamp it to something
+/// We chose 600.
+const double fallbackSize = 600;
+
 double _parseRawWidthHeight(String? raw) {
-  if (raw == '100%' || raw == '') {
-    return double.infinity;
-  }
-  assert(() {
-    final RegExp notDigits = RegExp(r'[^\d\.]');
-    if (!raw!.endsWith('px') && raw.contains(notDigits)) {
-      print(
-          'Warning: Flutter SVG only supports the following formats for `width` and `height` on the SVG root:\n'
-          '  width="100%"\n'
-          '  width="100px"\n'
-          '  width="100" (where the number will be treated as pixels).\n'
-          'The supplied value ($raw) will be discarded and treated as if it had not been specified.');
-    }
-    return true;
-  }());
-  return double.tryParse(raw!.replaceAll('px', '')) ?? double.infinity;
+  return parseDouble(raw, tryParse: true, fallback: fallbackSize)!;
 }
 
 /// yet another attempt at getting some dimension info out of the svg
