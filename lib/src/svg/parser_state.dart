@@ -376,9 +376,10 @@ class _Elements {
       if (ref == null) {
         // TODO: check on href and attributes
         parserState._addLateGradient(RadialGradientDefinition(
-            href: href,
-            isSelfClosing: elementSelfClosing,
-            attributes: parserState.attributes!));
+          href: href,
+          isSelfClosing: elementSelfClosing,
+          attributes: parserState.attributes!,
+        ));
         return null;
       }
     }

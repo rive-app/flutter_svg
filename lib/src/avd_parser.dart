@@ -11,13 +11,13 @@ import 'vector_drawable.dart';
 class DrawableAvdRoot extends DrawableRoot {
   DrawableAvdRoot(String id, DrawableViewport viewBox, List<Drawable> children,
       DrawableDefinitionServer definitions, DrawableStyle style)
-      : super(id, viewBox, children, definitions, style);
+      : super(id, viewBox, children, definitions, style, attributes: null);
 }
 
 /// An SVG Shape element that will be drawn to the canvas.
 class DrawableAvdPath extends DrawableShape {
   DrawableAvdPath(String? id, Path path, DrawableStyle style)
-      : super(id, path, style);
+      : super(id, path, style, attributes: null);
 
   /// Creates a [DrawableAvdPath] from an XML <path> element
   factory DrawableAvdPath.fromXml(XmlElement el) {
@@ -49,7 +49,7 @@ Drawable parseAvdElement(XmlElement el, Rect bounds) {
   }
   // TODO(dnfield): clipPath
   print('Unhandled element ${el.name.local}');
-  return DrawableGroup('', null, null);
+  return DrawableGroup('', null, null, attributes: null);
 }
 
 /// Parses an AVD <group> element.
@@ -76,5 +76,6 @@ Drawable parseAvdGroup(XmlElement el, Rect bounds) {
       groupOpacity: 1.0,
     ),
     transform: transform.storage,
+    attributes: null,
   );
 }

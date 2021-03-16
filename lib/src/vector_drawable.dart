@@ -887,7 +887,7 @@ class DrawableRoot with DrawableAttributes implements DrawableParent {
     this.definitions,
     this.style, {
     this.transform,
-    List<XmlEventAttribute>? attributes,
+    required List<XmlEventAttribute>? attributes,
     List<ClipPath>? clipPaths,
     List<Drawable>? masks,
   })  : attributes = attributes ?? <XmlEventAttribute>[],
@@ -1063,7 +1063,7 @@ class DrawableGroup
     this.children,
     this.style, {
     this.transform,
-    List<XmlEventAttribute>? attributes,
+    required List<XmlEventAttribute>? attributes,
     List<ClipPath>? clipPaths,
     List<Drawable>? masks,
   })  : attributes = attributes ?? <XmlEventAttribute>[],
@@ -1304,8 +1304,8 @@ class DrawableShape with DrawableAttributes implements DrawableStyleable {
     this.path,
     this.style, {
     this.transform,
-    List<XmlEventAttribute>? attributes,
-  })  : attributes = attributes ?? <XmlEventAttribute>[],
+    required List<XmlEventAttribute>? attributes,
+  })   : attributes = attributes ?? <XmlEventAttribute>[],
         assert(path != null), // ignore: unnecessary_null_comparison
         assert(style != null); // ignore: unnecessary_null_comparison
 

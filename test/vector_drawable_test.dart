@@ -19,6 +19,7 @@ void main() {
       <Drawable>[],
       DrawableDefinitionServer(),
       styleA,
+      attributes: null,
     );
     expect(root.style!.pathFillType, styleA.pathFillType);
     root = root.mergeStyle(styleB);
