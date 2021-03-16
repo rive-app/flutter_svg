@@ -30,6 +30,23 @@ double _parseRawWidthHeight(String? raw) {
   return double.tryParse(raw!.replaceAll('px', '')) ?? double.infinity;
 }
 
+/// yet another attempt at getting some dimension info out of the svg
+DrawableViewport? tryEnableBackground(List<XmlEventAttribute> svg) {
+  final String enableBackground =
+      getAttribute(svg, 'enable-background', def: '')!;
+  if (enableBackground == '') {
+    return null;
+  }
+  final List<String> backgroundParts = enableBackground.split(' ').toList();
+  if (backgroundParts.length != 5) {
+    return null;
+  }
+  return DrawableViewport(
+    Size(parseDouble(backgroundParts[3])!, parseDouble(backgroundParts[4])!),
+    Size(parseDouble(backgroundParts[3])!, parseDouble(backgroundParts[4])!),
+  );
+}
+
 /// Parses an SVG @viewBox attribute (e.g. 0 0 100 100) to a [Rect].
 ///
 /// The [nullOk] parameter controls whether this function should throw if there is no
@@ -46,6 +63,14 @@ DrawableViewport? parseViewBox(
   final String? rawHeight = getAttribute(svg, 'height');
 
   if (viewBox == '' && rawWidth == '' && rawHeight == '') {
+    // ok. lets see about enable background
+    if (svg != null) {
+      final DrawableViewport? output = tryEnableBackground(svg);
+      if (output != null) {
+        return output;
+      }
+    }
+
     if (nullOk) {
       return null;
     }
