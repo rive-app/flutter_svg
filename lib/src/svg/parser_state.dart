@@ -9,7 +9,6 @@ import 'package:vector_math/vector_math_64.dart';
 import 'package:xml/xml_events.dart' hide parseEvents;
 import 'package:path_parsing/path_parsing.dart';
 
-import '../utilities/errors.dart';
 import '../utilities/numbers.dart';
 import '../utilities/xml.dart';
 import '../vector_drawable.dart';
@@ -111,7 +110,7 @@ String? _getAttributeWithBackup(
           ),
     namespace: namespace,
     checkStyle: checkStyle,
-  )!;
+  );
 }
 
 class _TextInfo {
@@ -151,7 +150,7 @@ class LateUse {
 }
 
 class GradientDefinition {
-  final String href;
+  final String? href;
   final bool isSelfClosing;
   final List<XmlEventAttribute> attributes;
   String get url => 'url($href)';
@@ -161,7 +160,7 @@ class GradientDefinition {
 
 class LinearGradientDefinition extends GradientDefinition {
   LinearGradientDefinition({
-    required String href,
+    required String? href,
     required bool isSelfClosing,
     required List<XmlEventAttribute> attributes,
   }) : super(href, isSelfClosing, attributes);
@@ -169,7 +168,7 @@ class LinearGradientDefinition extends GradientDefinition {
 
 class RadialGradientDefinition extends GradientDefinition {
   RadialGradientDefinition({
-    required String href,
+    required String? href,
     required bool isSelfClosing,
     required List<XmlEventAttribute> attributes,
   }) : super(href, isSelfClosing, attributes);
@@ -377,7 +376,7 @@ class _Elements {
       if (ref == null) {
         // TODO: check on href and attributes
         parserState._addLateGradient(RadialGradientDefinition(
-            href: href!,
+            href: href,
             isSelfClosing: elementSelfClosing,
             attributes: parserState.attributes!));
         return null;
@@ -387,7 +386,7 @@ class _Elements {
     addRadialGradient(
         parserState,
         RadialGradientDefinition(
-            href: href!,
+            href: href,
             isSelfClosing: elementSelfClosing,
             attributes: parserState.attributes!));
     return null;
@@ -531,7 +530,7 @@ class _Elements {
       if (ref == null) {
         // TODO: href and attrs
         parserState._addLateGradient(LinearGradientDefinition(
-            href: href!,
+            href: href,
             isSelfClosing: elementSelfClosing,
             attributes: parserState.attributes!));
         return null;
@@ -540,7 +539,7 @@ class _Elements {
     addLinearGradient(
         parserState,
         LinearGradientDefinition(
-            href: href!,
+            href: href,
             isSelfClosing: elementSelfClosing,
             attributes: parserState.attributes!));
     return null;
@@ -614,24 +613,6 @@ class _Elements {
       ),
     );
     final TileMode spreadMethod = parseTileMode(linearGradient.attributes);
-
-    if (parserState._currentStartElement!.isSelfClosing) {
-      final String? href = getHrefAttribute(parserState.attributes);
-      final DrawableGradient? ref =
-          parserState._definitions.getGradient<DrawableGradient>('url($href)');
-      if (ref == null) {
-        reportMissingDef(parserState._key, href, 'linearGradient');
-      } else {
-        if (gradientUnits == null) {
-          isObjectBoundingBox =
-              ref.unitMode == GradientUnitMode.objectBoundingBox;
-        }
-        colors.addAll(ref.colors!);
-        offsets.addAll(ref.offsets!);
-      }
-    } else {
-      parseStops(parserState, colors, offsets);
-    }
 
     Offset fromOffset, toOffset;
     if (isObjectBoundingBox) {
