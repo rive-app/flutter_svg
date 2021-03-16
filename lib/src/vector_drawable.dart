@@ -57,6 +57,15 @@ abstract class DrawableParent implements DrawableStyleable {
   List<Drawable>? get children;
 }
 
+/// A containers for Clippaths, keeping track of the shapes wihtin it
+/// So we know how it was created.
+class ClipPath {
+  final String id;
+  final Float64List transform;
+  final List<DrawableShape> shapes;
+  ClipPath(this.id, this.transform) : shapes = [];
+}
+
 /// Styling information for vector drawing.
 ///
 /// Contains [Paint], [Path], dashing, transform, and text styling information.
@@ -104,7 +113,7 @@ class DrawableStyle {
   final PathFillType? pathFillType;
 
   /// The clip to apply, if any.
-  final List<Path>? clipPath;
+  final ClipPath? clipPath;
 
   /// The mask to apply, if any.
   final DrawableStyleable? mask;
@@ -130,7 +139,7 @@ class DrawableStyle {
     DrawableTextStyle? textStyle,
     PathFillType? pathFillType,
     double? groupOpacity,
-    List<Path>? clipPath,
+    ClipPath? clipPath,
     DrawableStyleable? mask,
     BlendMode? blendMode,
   }) {
@@ -556,7 +565,7 @@ class DrawableText implements Drawable {
 /// Contains reusable drawing elements that can be referenced by a String ID.
 class DrawableDefinitionServer {
   final Map<String, DrawableGradient> _gradients = <String, DrawableGradient>{};
-  final Map<String, List<Path>> _clipPaths = <String, List<Path>>{};
+  final Map<String, ClipPath> _clipPaths = <String, ClipPath>{};
   final Map<String, DrawableStyleable> _drawables =
       <String, DrawableStyleable>{};
 
@@ -602,14 +611,14 @@ class DrawableDefinitionServer {
     _gradients[id] = gradient;
   }
 
-  /// Get a [List<Path>] of clip paths by [id].
-  List<Path>? getClipPath(String id) {
+  /// Get a [ClipPath] of clip paths by [id].
+  ClipPath? getClipPath(String id) {
     assert(id != null); // ignore: unnecessary_null_comparison
     return _clipPaths[id];
   }
 
-  /// Add a [List<Path>] of clip paths by [id].
-  void addClipPath(String id, List<Path> paths) {
+  /// Add a [ClipPath] of clip paths by [id].
+  void addClipPath(String id, ClipPath paths) {
     assert(id != null); // ignore: unnecessary_null_comparison
     assert(paths != null); // ignore: unnecessary_null_comparison
     _clipPaths[id] = paths;
@@ -1044,10 +1053,10 @@ class DrawableGroup implements DrawableStyleable, DrawableParent {
       }
     };
 
-    if (style?.clipPath?.isNotEmpty == true) {
-      for (Path clipPath in style!.clipPath!) {
+    if (style?.clipPath != null) {
+      for (DrawableShape shape in style!.clipPath!.shapes) {
         canvas.save();
-        canvas.clipPath(clipPath);
+        canvas.clipPath(shape.path);
         if (children!.length > 1) {
           canvas.saveLayer(null, Paint());
         }
@@ -1272,10 +1281,10 @@ class DrawableShape implements DrawableStyleable {
       }
     };
 
-    if (style.clipPath?.isNotEmpty == true) {
-      for (Path clip in style.clipPath!) {
+    if (style.clipPath != null) {
+      for (DrawableShape shape in style.clipPath!.shapes) {
         canvas.save();
-        canvas.clipPath(clip);
+        canvas.clipPath(shape.path);
         innerDraw();
         canvas.restore();
       }
