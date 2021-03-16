@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -9,6 +10,8 @@ import 'package:vector_math/vector_math_64.dart';
 import 'render_picture.dart' as render_picture;
 import 'svg/parsers.dart' show affineMatrix;
 import 'svg/xml_parsers.dart';
+
+final _log = Logger('flutter_svg');
 
 /// Paint used in masks.
 final Paint _grayscaleDstInPaint = Paint()
@@ -574,7 +577,7 @@ class DrawableDefinitionServer {
     assert(id != null); // ignore: unnecessary_null_comparison
     final DrawableStyleable? value = _drawables[id];
     if (value == null && nullOk != true) {
-      throw StateError('Expected to find Drawable with id $id.\n'
+      _log.warning('Expected to find Drawable with id $id.\n'
           'Have ids: ${_drawables.keys}');
     }
     return value;
