@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:logging/logging.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:vector_math/vector_math_64.dart';
 import 'package:xml/xml_events.dart' hide parseEvents;
@@ -15,6 +16,8 @@ import '../vector_drawable.dart';
 import 'colors.dart';
 import 'parsers.dart';
 import 'xml_parsers.dart';
+
+final _log = Logger('flutter_svg');
 
 final Set<String> _unhandledElements = <String>{'title', 'desc'};
 
@@ -586,26 +589,30 @@ class _Elements {
       parseDouble(parserState.attribute('width', def: '0'))!,
       parseDouble(parserState.attribute('height', def: '0'))!,
     );
-    final Image image = await resolveImage(href);
-    final DrawableParent parent = parserState._parentDrawables.last.drawable!;
-    final DrawableStyle? parentStyle = parent.style;
-    final DrawableRasterImage drawable = DrawableRasterImage(
-      parserState.attribute('id', def: ''),
-      image,
-      offset,
-      parseStyle(
-        parserState._key,
-        parserState.attributes,
-        parserState._definitions,
-        parserState.rootBounds,
-        parentStyle,
-      ),
-      size: size,
-      transform: parseTransform(parserState.attribute('transform'))?.storage,
-    );
-    final bool isIri = parserState.checkForIri(drawable);
-    if (!parserState._inDefs || !isIri) {
-      parserState.currentGroup!.children!.add(drawable);
+    try {
+      final Image image = await resolveImage(href);
+      final DrawableParent parent = parserState._parentDrawables.last.drawable!;
+      final DrawableStyle? parentStyle = parent.style;
+      final DrawableRasterImage drawable = DrawableRasterImage(
+        parserState.attribute('id', def: ''),
+        image,
+        offset,
+        parseStyle(
+          parserState._key,
+          parserState.attributes,
+          parserState._definitions,
+          parserState.rootBounds,
+          parentStyle,
+        ),
+        size: size,
+        transform: parseTransform(parserState.attribute('transform'))?.storage,
+      );
+      final bool isIri = parserState.checkForIri(drawable);
+      if (!parserState._inDefs || !isIri) {
+        parserState.currentGroup!.children!.add(drawable);
+      }
+    } on UnsupportedError catch (err) {
+      _log.warning('Ignoring image issue', err);
     }
   }
 
