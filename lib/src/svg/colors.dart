@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 
 import '../utilities/numbers.dart';
@@ -23,7 +24,12 @@ Color? parseColor(String? colorString) {
       final String b = colorString[3];
       colorString = '#$r$r$g$g$b$b';
     }
-    int color = int.parse(colorString.substring(1), radix: 16);
+    // if we get a few more .. who cares?
+    if (colorString.length == 8) {
+      colorString = colorString.substring(0, 7);
+    }
+    int color = int.parse(colorString.substring(1, min(9, colorString.length)),
+        radix: 16);
 
     if (colorString.length == 7) {
       return Color(color |= 0xFF000000);
@@ -141,6 +147,7 @@ Color? parseColor(String? colorString) {
 
 // https://www.w3.org/TR/SVG11/types.html#ColorKeywords
 const Map<String, Color> _namedColors = <String, Color>{
+  'currentColor': Color.fromARGB(255, 0, 0, 0), // black
   'aliceblue': Color.fromARGB(255, 240, 248, 255),
   'antiquewhite': Color.fromARGB(255, 250, 235, 215),
   'aqua': Color.fromARGB(255, 0, 255, 255),
