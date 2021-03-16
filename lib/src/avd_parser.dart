@@ -9,18 +9,14 @@ import 'avd/xml_parsers.dart';
 import 'vector_drawable.dart';
 
 class DrawableAvdRoot extends DrawableRoot {
-  const DrawableAvdRoot(
-      String id,
-      DrawableViewport viewBox,
-      List<Drawable> children,
-      DrawableDefinitionServer definitions,
-      DrawableStyle style)
+  DrawableAvdRoot(String id, DrawableViewport viewBox, List<Drawable> children,
+      DrawableDefinitionServer definitions, DrawableStyle style)
       : super(id, viewBox, children, definitions, style);
 }
 
 /// An SVG Shape element that will be drawn to the canvas.
 class DrawableAvdPath extends DrawableShape {
-  const DrawableAvdPath(String? id, Path path, DrawableStyle style)
+  DrawableAvdPath(String? id, Path path, DrawableStyle style)
       : super(id, path, style);
 
   /// Creates a [DrawableAvdPath] from an XML <path> element

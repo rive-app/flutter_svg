@@ -6,12 +6,27 @@ import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:vector_math/vector_math_64.dart';
+import 'package:xml/xml_events.dart';
 
 import 'render_picture.dart' as render_picture;
 import 'svg/parsers.dart' show affineMatrix;
 import 'svg/xml_parsers.dart';
 
 final _log = Logger('flutter_svg');
+
+mixin DrawableClipPaths {
+  List<ClipPath> get clipPaths;
+  void addClipPath(ClipPath clipPath);
+}
+
+mixin DrawableMasks {
+  List<Drawable> get masks;
+  void addMask(Drawable mask);
+}
+
+mixin DrawableAttributes {
+  List<XmlEventAttribute> get attributes;
+}
 
 /// Paint used in masks.
 final Paint _grayscaleDstInPaint = Paint()
@@ -53,18 +68,30 @@ abstract class DrawableStyleable extends Drawable {
 }
 
 /// A [Drawable] that can have child [Drawables] and [DrawableStyle].
-abstract class DrawableParent implements DrawableStyleable {
+abstract class DrawableParent
+    with DrawableClipPaths, DrawableMasks
+    implements DrawableStyleable {
   /// The child [Drawables] of this [DrawableParent].
   ///
   /// Each child may itself have children.
   List<Drawable>? get children;
+
+  @override
+  void addMask(Drawable mask) {
+    masks.add(mask);
+  }
+
+  @override
+  void addClipPath(ClipPath clipPath) {
+    clipPaths.add(clipPath);
+  }
 }
 
 /// A containers for Clippaths, keeping track of the shapes wihtin it
 /// So we know how it was created.
 class ClipPath {
   final String id;
-  final Float64List transform;
+  final Float64List? transform;
   final List<DrawableShape> shapes;
   ClipPath(this.id, this.transform) : shapes = [];
 }
@@ -843,16 +870,40 @@ class DrawableViewport {
 }
 
 /// The root element of a drawable.
-class DrawableRoot implements DrawableParent {
+class DrawableRoot with DrawableAttributes implements DrawableParent {
   /// Creates a new [DrawableRoot].
-  const DrawableRoot(
+  DrawableRoot(
     this.id,
     this.viewport,
     this.children,
     this.definitions,
     this.style, {
     this.transform,
-  });
+    List<XmlEventAttribute>? attributes,
+    List<ClipPath>? clipPaths,
+    List<Drawable>? masks,
+  })  : attributes = attributes ?? <XmlEventAttribute>[],
+        clipPaths = clipPaths ?? <ClipPath>[],
+        masks = masks ?? <Drawable>[];
+
+  @override
+  final List<XmlEventAttribute> attributes;
+
+  @override
+  final List<ClipPath> clipPaths;
+
+  @override
+  final List<Drawable> masks;
+
+  @override
+  void addMask(Drawable mask) {
+    masks.add(mask);
+  }
+
+  @override
+  void addClipPath(ClipPath clipPath) {
+    clipPaths.add(clipPath);
+  }
 
   /// The expected coordinates used by child paths for drawing.
   final DrawableViewport viewport;
@@ -985,16 +1036,50 @@ class DrawableRoot implements DrawableParent {
       mergedChildren,
       definitions,
       mergedStyle,
+      attributes: attributes,
       transform: transform,
+      clipPaths: clipPaths,
+      masks: masks,
     );
   }
 }
 
 /// Represents a group of drawing elements that may share a common `transform`,
 /// `stroke`, or `fill`.
-class DrawableGroup implements DrawableStyleable, DrawableParent {
+class DrawableGroup
+    with DrawableAttributes
+    implements DrawableStyleable, DrawableParent {
   /// Creates a new DrawableGroup.
-  const DrawableGroup(this.id, this.children, this.style, {this.transform});
+  DrawableGroup(
+    this.id,
+    this.children,
+    this.style, {
+    this.transform,
+    List<XmlEventAttribute>? attributes,
+    List<ClipPath>? clipPaths,
+    List<Drawable>? masks,
+  })  : attributes = attributes ?? <XmlEventAttribute>[],
+        clipPaths = clipPaths ?? <ClipPath>[],
+        masks = masks ?? <Drawable>[];
+
+  @override
+  final List<XmlEventAttribute> attributes;
+
+  @override
+  final List<ClipPath> clipPaths;
+
+  @override
+  final List<Drawable> masks;
+
+  @override
+  void addMask(Drawable mask) {
+    masks.add(mask);
+  }
+
+  @override
+  void addClipPath(ClipPath clipPath) {
+    clipPaths.add(clipPath);
+  }
 
   @override
   final String? id;
@@ -1102,7 +1187,10 @@ class DrawableGroup implements DrawableStyleable, DrawableParent {
       id,
       mergedChildren,
       mergedStyle,
+      attributes: attributes,
       transform: transform,
+      clipPaths: clipPaths,
+      masks: masks,
     );
   }
 }
@@ -1201,10 +1289,16 @@ class DrawableRasterImage implements DrawableStyleable {
 }
 
 /// Represents a drawing element that will be rendered to the canvas.
-class DrawableShape implements DrawableStyleable {
+class DrawableShape with DrawableAttributes implements DrawableStyleable {
   /// Creates a new [DrawableShape].
-  const DrawableShape(this.id, this.path, this.style, {this.transform})
-      : assert(path != null), // ignore: unnecessary_null_comparison
+  DrawableShape(
+    this.id,
+    this.path,
+    this.style, {
+    this.transform,
+    List<XmlEventAttribute>? attributes,
+  })  : attributes = attributes ?? <XmlEventAttribute>[],
+        assert(path != null), // ignore: unnecessary_null_comparison
         assert(style != null); // ignore: unnecessary_null_comparison
 
   @override
@@ -1215,6 +1309,9 @@ class DrawableShape implements DrawableStyleable {
 
   @override
   final DrawableStyle style;
+
+  @override
+  final List<XmlEventAttribute> attributes;
 
   /// The [Path] describing this shape.
   final Path path;
@@ -1313,6 +1410,7 @@ class DrawableShape implements DrawableStyleable {
         pathFillType: newStyle.pathFillType,
         textStyle: newStyle.textStyle,
       ),
+      attributes: attributes,
       transform: transform,
     );
   }

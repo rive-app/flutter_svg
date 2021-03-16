@@ -1,10 +1,12 @@
 import 'dart:collection';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:vector_math/vector_math_64.dart';
 import 'package:xml/xml_events.dart' hide parseEvents;
+import 'package:path_parsing/path_parsing.dart';
 
 import '../utilities/errors.dart';
 import '../utilities/numbers.dart';
@@ -44,6 +46,30 @@ const Map<String, _PathFunc> _svgPathFuncs = <String, _PathFunc>{
   'line': _Paths.line,
 };
 
+enum pathFuncs {
+  addOval,
+  addRect,
+  addRRect,
+  addPath,
+  addArc,
+  addPolygon,
+  lineTo,
+  arcTo,
+  arcToPoint,
+  relativeMoveTo,
+  relativeLineTo,
+  relativeArcToPoint,
+  quadraticBezierTo,
+  relativeQuadraticBezierTo,
+  close,
+  moveTo,
+  conicTo,
+  relativeConicTo,
+  cubicTo,
+  relativeCubicTo,
+  transform,
+}
+
 Offset _parseCurrentOffset(SvgParserState parserState, Offset? lastOffset) {
   final String? x = parserState.attribute('x', def: null);
   final String? y = parserState.attribute('y', def: null);
@@ -73,6 +99,27 @@ class _TextInfo {
 
   @override
   String toString() => '$runtimeType{$offset, $style, $transform}';
+}
+
+class LateUse {
+  final String id;
+  final String xlinkHref;
+  final DrawableStyle style;
+  final Matrix4 transform;
+  final List<XmlEventAttribute> attributes;
+  final List<Drawable> children;
+  final bool inDefs;
+
+  LateUse({
+    required this.id,
+    required this.xlinkHref,
+    required this.style,
+    required this.transform,
+    required this.inDefs,
+    List<XmlEventAttribute>? attributes,
+    List<Drawable>? children,
+  })  : children = children ?? <Drawable>[],
+        attributes = attributes ?? <XmlEventAttribute>[];
 }
 
 class _Elements {
@@ -112,6 +159,7 @@ class _Elements {
               viewBox!.viewBoxRect,
               null,
             ),
+            attributes: parserState.attributes,
           ),
         ),
       );
@@ -129,6 +177,7 @@ class _Elements {
         viewBox.viewBoxRect,
         null,
       ),
+      attributes: parserState.attributes,
     );
     parserState.addGroup(parserState._currentStartElement!, parserState._root);
     return null;
@@ -147,6 +196,7 @@ class _Elements {
         parent.style,
       ),
       transform: parseTransform(parserState.attribute('transform'))?.storage,
+      attributes: parserState.attributes,
     );
     if (!parserState._inDefs) {
       parent.children!.add(group);
@@ -169,8 +219,10 @@ class _Elements {
         parent.style,
       ),
       transform: parseTransform(parserState.attribute('transform'))?.storage,
+      attributes: parserState.attributes,
     );
     parserState.addGroup(parserState._currentStartElement!, group);
+    parent.addMask(group);
     return null;
   }
 
@@ -197,19 +249,33 @@ class _Elements {
       parseDouble(parserState.attribute('y', def: '0'))!,
     );
 
-    final DrawableStyleable ref =
-        parserState._definitions.getDrawable('url($xlinkHref)')!;
-    final DrawableGroup group = DrawableGroup(
-      parserState.attribute('id', def: ''),
-      <Drawable>[ref.mergeStyle(style)],
-      style,
-      transform: transform.storage,
-    );
+    final DrawableStyleable? ref =
+        parserState._definitions.getDrawable('url($xlinkHref)');
+    if (ref == null) {
+      parserState.addLateUse(LateUse(
+        id: parserState.attribute('id', def: '')!,
+        style: style,
+        xlinkHref: xlinkHref,
+        transform: transform,
+        attributes: parserState.attributes,
+        children: parent.children,
+        inDefs: parserState.inDefs,
+      ));
+    } else {
+      final DrawableGroup group = DrawableGroup(
+        parserState.attribute('id', def: ''),
+        <Drawable>[ref.mergeStyle(style)],
+        style,
+        transform: transform.storage,
+        attributes: parserState.attributes,
+      );
 
-    final bool isIri = parserState.checkForIri(group);
-    if (!parserState._inDefs || !isIri) {
-      parent.children!.add(group);
+      final bool isIri = parserState.checkForIri(group);
+      if (!parserState._inDefs || !isIri) {
+        parent.children!.add(group);
+      }
     }
+
     return null;
   }
 
@@ -431,33 +497,39 @@ class _Elements {
   static Future<void>? clipPath(
       SvgParserState parserState, bool warningsAsErrors) {
     final String id = buildUrlIri(parserState.attributes);
+    final transform =
+        parseTransform(parserState.attribute('transform'))?.storage;
 
-    final List<Path> paths = <Path>[];
+    final clipPath = ClipPath(id, transform);
     Path? currentPath;
     for (XmlEvent event in parserState._readSubtree()) {
       if (event is XmlEndElementEvent) {
         continue;
       }
       if (event is XmlStartElementEvent) {
-        final _PathFunc? pathFn = parserState.getSvgPathFunc(event.name);
+        final _PathFunc? pathFn = _svgPathFuncs[event.name];
 
         if (pathFn != null) {
-          final Path nextPath = applyTransformIfNeeded(
-            pathFn(parserState.attributes),
-            parserState.attributes,
-          )!;
-          nextPath.fillType =
-              parseFillRule(parserState.attributes, 'clip-rule')!;
-          if (currentPath != null &&
-              nextPath.fillType != currentPath.fillType) {
-            currentPath = nextPath;
-            paths.add(currentPath);
-          } else if (currentPath == null) {
-            currentPath = nextPath;
-            paths.add(currentPath);
-          } else {
-            currentPath.addPath(nextPath, Offset.zero);
-          }
+          final Path path = pathFn(parserState.attributes)!;
+          final DrawableShape drawable = DrawableShape(
+            // TODO: this id thing right?
+            id,
+            path,
+            parseStyle(
+              parserState.key,
+              parserState.attributes,
+              parserState.definitions,
+              path.getBounds(),
+              const DrawableStyle(fill: DrawablePaint.empty),
+              defaultFillColor: Color.fromARGB(0, 0, 0, 0),
+            ),
+            attributes: parserState.attributes,
+            transform: parseTransform(
+                    getAttribute(parserState.attributes, 'transform'))
+                ?.storage,
+          );
+
+          clipPath.shapes.add(drawable);
         } else if (event.name == 'use') {
           final String? xlinkHref = getHrefAttribute(parserState.attributes);
           final DrawableStyleable? definitionDrawable =
@@ -465,7 +537,7 @@ class _Elements {
 
           void extractPathsFromDrawable(Drawable? target) {
             if (target is DrawableShape) {
-              paths.add(target.path);
+              clipPath.shapes.add(target);
             } else if (target is DrawableGroup) {
               target.children!.forEach(extractPathsFromDrawable);
             }
@@ -495,7 +567,8 @@ class _Elements {
         }
       }
     }
-    parserState._definitions.addClipPath(id, paths);
+    parserState._definitions.addClipPath(id, clipPath);
+    parserState.currentGroup?.addClipPath(clipPath);
     return null;
   }
 
@@ -634,21 +707,253 @@ class _Elements {
   }
 }
 
+class RivePath extends Path {
+  RivePath()
+      : instructions = <dynamic>[],
+        super();
+
+  List<dynamic> instructions;
+  @override
+  void addOval(Rect oval) {
+    instructions.add([pathFuncs.addOval, oval]);
+    super.addOval(oval);
+  }
+
+  @override
+  void addRect(Rect rect) {
+    instructions.add([pathFuncs.addRect, rect]);
+    super.addRect(rect);
+  }
+
+  @override
+  void addRRect(RRect rrect) {
+    instructions.add([pathFuncs.addRRect, rrect]);
+    super.addRRect(rrect);
+  }
+
+  @override
+  void addPath(Path path, Offset offset, {Float64List? matrix4}) {
+    instructions.add([pathFuncs.addPath, path, offset, matrix4]);
+    super.addPath(path, offset, matrix4: matrix4);
+  }
+
+  @override
+  void addArc(Rect oval, double startAngle, double sweepAngle) {
+    instructions.add([pathFuncs.addArc, startAngle, sweepAngle]);
+    super.addArc(oval, startAngle, sweepAngle);
+  }
+
+  @override
+  void addPolygon(List<Offset> points, bool close) {
+    instructions.add([pathFuncs.addPolygon, points, close]);
+    super.addPolygon(points, close);
+  }
+
+  @override
+  void lineTo(double x, double y) {
+    instructions.add([pathFuncs.lineTo, x, y]);
+    super.lineTo(x, y);
+  }
+
+  @override
+  void arcTo(
+      Rect rect, double startAngle, double sweepAngle, bool forceMoveTo) {
+    instructions.add([
+      pathFuncs.arcTo,
+      rect,
+      startAngle,
+      sweepAngle,
+      forceMoveTo,
+    ]);
+    super.arcTo(rect, startAngle, sweepAngle, forceMoveTo);
+  }
+
+  @override
+  void arcToPoint(Offset arcEnd,
+      {bool clockwise: true,
+      bool largeArc: false,
+      Radius radius: Radius.zero,
+      double rotation: 0}) {
+    instructions.add([
+      pathFuncs.arcToPoint,
+      arcEnd,
+      clockwise,
+      largeArc,
+      radius,
+      rotation,
+    ]);
+    super.arcToPoint(arcEnd,
+        clockwise: clockwise,
+        largeArc: largeArc,
+        radius: radius,
+        rotation: rotation);
+  }
+
+  @override
+  void relativeMoveTo(double dx, double dy) {
+    instructions.add([pathFuncs.relativeMoveTo, dx, dy]);
+    super.relativeMoveTo(dx, dy);
+  }
+
+  @override
+  void relativeLineTo(double dx, double dy) {
+    instructions.add([pathFuncs.relativeLineTo, dx, dy]);
+    super.relativeLineTo(dx, dy);
+  }
+
+  @override
+  void relativeArcToPoint(Offset arcEnd,
+      {bool clockwise: true,
+      bool largeArc: false,
+      Radius radius: Radius.zero,
+      double rotation: 0}) {
+    instructions.add([
+      pathFuncs.relativeArcToPoint,
+      arcEnd,
+      clockwise,
+      largeArc,
+      radius,
+      rotation
+    ]);
+    super.relativeArcToPoint(arcEnd,
+        clockwise: clockwise,
+        largeArc: largeArc,
+        radius: radius,
+        rotation: rotation);
+  }
+
+  @override
+  RivePath transform(Float64List matrix4) {
+    //TODO: figure out what we're doing with transform.
+    // we currently dont evalutate this really....
+
+    // instructions.add([pathFuncs.transform, matrix4]);
+    // final RivePath path = RivePath();
+    // path.instructions.addAll(instructions);
+    // _transform(path, matrix4);
+    return this;
+  }
+
+  @override
+  void quadraticBezierTo(double x1, double y1, double x2, double y2) {
+    instructions.add([pathFuncs.quadraticBezierTo, x1, y1, x2, y2]);
+    super.quadraticBezierTo(x1, y1, x2, y2);
+  }
+
+  @override
+  void relativeQuadraticBezierTo(
+    double x1,
+    double y1,
+    double x2,
+    double y2,
+  ) {
+    instructions.add([pathFuncs.relativeQuadraticBezierTo, x1, y1, x2, y2]);
+    super.relativeQuadraticBezierTo(x1, y1, x2, y2);
+  }
+
+  @override
+  void close() {
+    instructions.add([pathFuncs.close]);
+    super.close();
+  }
+
+  @override
+  void moveTo(double x, double y) {
+    instructions.add([pathFuncs.moveTo, x, y]);
+    super.moveTo(x, y);
+  }
+
+  @override
+  void conicTo(double x1, double y1, double x2, double y2, double w) {
+    instructions.add([pathFuncs.conicTo, x1, y1, x2, y2, w]);
+    super.conicTo(x1, y1, x2, y2, w);
+  }
+
+  @override
+  void relativeConicTo(double x1, double y1, double x2, double y2, double w) {
+    instructions.add([pathFuncs.relativeConicTo, x1, y1, x2, y2, w]);
+    super.relativeConicTo(x1, y1, x2, y2, w);
+  }
+
+  @override
+  void cubicTo(
+      double x1, double y1, double x2, double y2, double x3, double y3) {
+    instructions.add([pathFuncs.cubicTo, x1, y1, x2, y2, x3, y3]);
+    super.cubicTo(x1, y1, x2, y2, x3, y3);
+  }
+
+  @override
+  void relativeCubicTo(
+      double x1, double y1, double x2, double y2, double x3, double y3) {
+    instructions.add([pathFuncs.relativeCubicTo, x1, y1, x2, y2, x3, y3]);
+    super.relativeCubicTo(x1, y1, x2, y2, x3, y3);
+  }
+}
+
+class RivePathProxy extends FlutterPathProxy {
+  RivePathProxy({
+    RivePath? p,
+  }) : path = p ?? RivePath();
+
+  // i know, i know its disgusting
+  @override
+  // ignore: overridden_fields
+  final RivePath path;
+
+  @override
+  void close() {
+    path.close();
+  }
+
+  @override
+  void cubicTo(
+      double x1, double y1, double x2, double y2, double x3, double y3) {
+    path.cubicTo(x1, y1, x2, y2, x3, y3);
+  }
+
+  @override
+  void lineTo(double x, double y) {
+    path.lineTo(x, y);
+  }
+
+  @override
+  void moveTo(double x, double y) {
+    path.moveTo(x, y);
+  }
+}
+
+RivePath? parseSvgPathData(String? svg) {
+  if (svg == null) {
+    return null;
+  }
+  if (svg == '') {
+    return RivePath();
+  }
+
+  final SvgPathStringSource parser = SvgPathStringSource(svg);
+  final RivePathProxy path = RivePathProxy();
+  final SvgPathNormalizer normalizer = SvgPathNormalizer();
+  for (final PathSegmentData seg in parser.parseSegments()) {
+    normalizer.emitSegment(seg, path);
+  }
+  return path.path;
+}
+
 class _Paths {
-  static Path circle(List<XmlEventAttribute>? attributes) {
+  static RivePath circle(List<XmlEventAttribute>? attributes) {
     final double cx = parseDouble(getAttribute(attributes, 'cx', def: '0'))!;
     final double cy = parseDouble(getAttribute(attributes, 'cy', def: '0'))!;
     final double r = parseDouble(getAttribute(attributes, 'r', def: '0'))!;
     final Rect oval = Rect.fromCircle(center: Offset(cx, cy), radius: r);
-    return Path()..addOval(oval);
+    return RivePath()..addOval(oval);
   }
 
-  static Path path(List<XmlEventAttribute>? attributes) {
+  static RivePath? path(List<XmlEventAttribute>? attributes) {
     final String d = getAttribute(attributes, 'd')!;
     return parseSvgPathData(d);
   }
 
-  static Path rect(List<XmlEventAttribute>? attributes) {
+  static RivePath rect(List<XmlEventAttribute>? attributes) {
     final double x = parseDouble(getAttribute(attributes, 'x', def: '0'))!;
     final double y = parseDouble(getAttribute(attributes, 'y', def: '0'))!;
     final double w = parseDouble(getAttribute(attributes, 'width', def: '0'))!;
@@ -663,21 +968,21 @@ class _Paths {
       final double rx = parseDouble(rxRaw)!;
       final double ry = parseDouble(ryRaw)!;
 
-      return Path()..addRRect(RRect.fromRectXY(rect, rx, ry));
+      return RivePath()..addRRect(RRect.fromRectXY(rect, rx, ry));
     }
 
-    return Path()..addRect(rect);
+    return RivePath()..addRect(rect);
   }
 
-  static Path? polygon(List<XmlEventAttribute>? attributes) {
+  static RivePath? polygon(List<XmlEventAttribute>? attributes) {
     return parsePathFromPoints(attributes, true);
   }
 
-  static Path? polyline(List<XmlEventAttribute>? attributes) {
+  static RivePath? polyline(List<XmlEventAttribute>? attributes) {
     return parsePathFromPoints(attributes, false);
   }
 
-  static Path? parsePathFromPoints(
+  static RivePath? parsePathFromPoints(
       List<XmlEventAttribute>? attributes, bool close) {
     final String? points = getAttribute(attributes, 'points');
     if (points == '') {
@@ -688,23 +993,23 @@ class _Paths {
     return parseSvgPathData(path);
   }
 
-  static Path ellipse(List<XmlEventAttribute>? attributes) {
+  static RivePath? ellipse(List<XmlEventAttribute>? attributes) {
     final double cx = parseDouble(getAttribute(attributes, 'cx', def: '0'))!;
     final double cy = parseDouble(getAttribute(attributes, 'cy', def: '0'))!;
     final double rx = parseDouble(getAttribute(attributes, 'rx', def: '0'))!;
     final double ry = parseDouble(getAttribute(attributes, 'ry', def: '0'))!;
 
     final Rect r = Rect.fromLTWH(cx - rx, cy - ry, rx * 2, ry * 2);
-    return Path()..addOval(r);
+    return RivePath()..addOval(r);
   }
 
-  static Path line(List<XmlEventAttribute>? attributes) {
+  static RivePath? line(List<XmlEventAttribute>? attributes) {
     final double x1 = parseDouble(getAttribute(attributes, 'x1', def: '0'))!;
     final double x2 = parseDouble(getAttribute(attributes, 'x2', def: '0'))!;
     final double y1 = parseDouble(getAttribute(attributes, 'y1', def: '0'))!;
     final double y2 = parseDouble(getAttribute(attributes, 'y2', def: '0'))!;
 
-    return Path()
+    return RivePath()
       ..moveTo(x1, y1)
       ..lineTo(x2, y2);
   }
@@ -725,7 +1030,9 @@ class SvgParserState {
   SvgParserState(Iterable<XmlEvent> events, this._key, this._warningsAsErrors)
       // ignore: unnecessary_null_comparison
       : assert(events != null),
-        _eventIterator = events.iterator;
+        _eventIterator = events.iterator,
+        _lateUses = <LateUse>[],
+        _elementsStack = <String>[];
 
   final Iterator<XmlEvent> _eventIterator;
   final String? _key;
@@ -736,9 +1043,39 @@ class SvgParserState {
   bool _inDefs = false;
   List<XmlEventAttribute>? _currentAttributes;
   XmlStartElementEvent? _currentStartElement;
+  final List<LateUse> _lateUses;
+  final List<String> _elementsStack;
 
   /// The current depth of the reader in the XML hierarchy.
   int depth = 0;
+
+  /// add a late use to the parser, to be deal with after parsing is done.
+  void addLateUse(LateUse use) {
+    _lateUses.add(use);
+  }
+
+  /// add the late uses to the stuff!
+  void applyLateUses() {
+    _lateUses.forEach(_applyLateUse);
+  }
+
+  void _applyLateUse(LateUse use) {
+    final DrawableStyleable ref =
+        _definitions.getDrawable('url(${use.xlinkHref})')!;
+    // TODO: what if its still not there?
+    final DrawableGroup group = DrawableGroup(
+      use.id,
+      <Drawable>[ref.mergeStyle(use.style)],
+      use.style,
+      transform: use.transform.storage,
+      attributes: use.attributes,
+    );
+
+    final bool isIri = checkForIri(group);
+    if (!use.inDefs || !isIri) {
+      use.children.add(group);
+    }
+  }
 
   void _discardSubtree() {
     final int subtreeStartDepth = depth;
@@ -782,10 +1119,12 @@ class SvgParserState {
         _currentStartElement = event;
         depth += 1;
         isSelfClosing = event.isSelfClosing;
+        _elementsStack.add(event.name);
       }
       yield event;
 
       if (isSelfClosing || event is XmlEndElementEvent) {
+        _elementsStack.removeLast();
         depth -= 1;
         assert(depth >= 0);
         _currentAttributes = <XmlEventAttribute>[];
@@ -798,13 +1137,13 @@ class SvgParserState {
   }
 
   /// Drive the [XmlTextReader] to EOF and produce a [DrawableRoot].
-  Future<T extends DrawableRoot> parse() async {
+  Future<DrawableRoot> parse() async {
     for (XmlEvent event in _readSubtree()) {
       if (event is XmlStartElementEvent) {
         if (startElement(event)) {
           continue;
         }
-        final _ParseFunc? parseFunc = getSvgElementParsers(event.name);
+        final _ParseFunc? parseFunc = _svgElementParsers[event.name];
         await parseFunc?.call(this, _warningsAsErrors);
         if (parseFunc == null) {
           if (!event.isSelfClosing) {
@@ -822,6 +1161,7 @@ class SvgParserState {
     if (_root == null) {
       throw StateError('Invalid SVG data');
     }
+    applyLateUses();
     return _root!;
   }
 
@@ -864,7 +1204,7 @@ class SvgParserState {
 
   /// Appends a [DrawableShape] to the [currentGroup].
   bool addShape(XmlStartElementEvent event) {
-    final _PathFunc? pathFunc = getSvgPathFunc(event.name);
+    final _PathFunc? pathFunc = _svgPathFuncs[event.name];
     if (pathFunc == null) {
       return false;
     }
@@ -883,13 +1223,19 @@ class SvgParserState {
         parentStyle,
         defaultFillColor: colorBlack,
       ),
+      attributes: attributes,
       transform: parseTransform(getAttribute(attributes, 'transform'))?.storage,
     );
     final bool isIri = checkForIri(drawable);
-    if (!_inDefs || !isIri) {
+    if (!_inDefs || !isIri || hasMaskParent) {
       parent.children!.add(drawable);
     }
     return true;
+  }
+
+  /// check the elements stack and see if a mask attribute is anywhere in there
+  bool get hasMaskParent {
+    return _elementsStack.contains('mask');
   }
 
   /// Potentially handles a starting element.
@@ -946,16 +1292,10 @@ class SvgParserState {
     }
   }
 
-  /// overwrite to customize how to parse paths
-  _PathFunc? getSvgPathFunc(String name) => _svgPathFuncs[name];
-
-  /// overwrite to customize how to parse elements
-  _ParseFunc? getSvgElementParsers(String name) => _svgElementParsers[name];
-  
   /// give access to the root element.
   DrawableRoot? get root => _root;
-  set root(DrawableRoot? root) => _root =root;
-  
+  set root(DrawableRoot? root) => _root = root;
+
   /// give access to the current key element.
   String? get key => _key;
   DrawableDefinitionServer get definitions => _definitions;
