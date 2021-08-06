@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_svg/src/utilities/errors.dart';
 import 'package:logging/logging.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -1209,6 +1210,7 @@ class SvgParserState {
       : assert(events != null),
         _eventIterator = events.iterator,
         _lateUses = <LateUse>[],
+        _lateShaders = <LateShader, DrawableStyleable>{},
         _elementsStack = <String>[],
         _lateGradients = <String, List<GradientDefinition>>{};
 
@@ -1222,7 +1224,9 @@ class SvgParserState {
   List<XmlEventAttribute>? _currentAttributes;
   XmlStartElementEvent? _currentStartElement;
   final List<LateUse> _lateUses;
+
   final List<String> _elementsStack;
+  final Map<LateShader, DrawableStyleable> _lateShaders;
   final Map<String, List<GradientDefinition>> _lateGradients;
 
   /// The current depth of the reader in the XML hierarchy.
@@ -1254,6 +1258,58 @@ class SvgParserState {
     if (!use.inDefs || !isIri) {
       use.children.add(group);
     }
+  }
+
+  /// add the late uses to the stuff!
+  void applyLateShaders() {
+    _lateShaders.forEach(_applyLateShader);
+  }
+
+  void _applyLateShader(
+    LateShader lateShader,
+    DrawableStyleable drawable,
+  ) {
+    final Shader? shader =
+        definitions.getShader(lateShader.iri, lateShader.bounds);
+
+    if (shader == null) {
+      // complain
+      reportMissingDef(key, lateShader.iri, '_getDefinitionPaint');
+      return;
+    }
+
+    final DrawablePaint fill = DrawablePaint(
+      lateShader.style,
+      shader: shader,
+      color: lateShader.color,
+      strokeCap: lateShader.strokeCap,
+      strokeJoin: lateShader.strokeJoin,
+      strokeMiterLimit: lateShader.strokeMiterLimit,
+      strokeWidth: lateShader.strokeWidth,
+    );
+
+    final DrawableStyleable newDrawable =
+        drawable.mergeStyle(DrawableStyle(fill: fill));
+
+    void replace(DrawablePaint fill, DrawableParent parent) {
+      if (parent.children == null) {
+        return;
+      }
+      if (parent.children!.contains(drawable)) {
+        final int index = parent.children!.indexOf(drawable);
+        parent.children!.replaceRange(index, index + 1, [newDrawable]);
+        return;
+      }
+      void callReplace(Drawable element) {
+        if (element is DrawableParent) {
+          replace(fill, element);
+        }
+      }
+
+      parent.children!.forEach(callReplace);
+    }
+
+    replace(fill, _root!);
   }
 
   void _discardSubtree() {
@@ -1341,6 +1397,7 @@ class SvgParserState {
       throw StateError('Invalid SVG data');
     }
     applyLateUses();
+    applyLateShaders();
     return _root!;
   }
 
@@ -1405,6 +1462,12 @@ class SvgParserState {
       attributes: attributes,
       transform: parseTransform(getAttribute(attributes, 'transform'))?.storage,
     );
+
+    if (drawable.style?.fill?.shader is LateShader) {
+      final LateShader shader = drawable.style!.fill!.shader as LateShader;
+      _lateShaders[shader] = drawable;
+    }
+
     final bool isIri = checkForIri(drawable);
     if (!_inDefs || !isIri || hasMaskParent) {
       parent.children!.add(drawable);

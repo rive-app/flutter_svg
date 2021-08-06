@@ -1,10 +1,11 @@
+// ignore_for_file: public_member_api_docs
+
 import 'dart:ui';
 
 import 'package:path_drawing/path_drawing.dart';
 import 'package:vector_math/vector_math_64.dart';
 import 'package:xml/xml_events.dart';
 
-import '../utilities/errors.dart';
 import '../utilities/numbers.dart';
 import '../utilities/xml.dart';
 import '../vector_drawable.dart';
@@ -166,6 +167,28 @@ double? parseOpacity(List<XmlEventAttribute>? attributes) {
   return null;
 }
 
+class LateShader implements Shader {
+  LateShader(
+    this.iri,
+    this.bounds,
+    this.style, {
+    this.color,
+    this.strokeCap,
+    this.strokeJoin,
+    this.strokeMiterLimit,
+    this.strokeWidth,
+  });
+
+  final String iri;
+  final Rect bounds;
+  final PaintingStyle style;
+  final Color? color;
+  final double? strokeWidth;
+  final double? strokeMiterLimit;
+  final StrokeCap? strokeCap;
+  final StrokeJoin? strokeJoin;
+}
+
 DrawablePaint _getDefinitionPaint(
   String? key,
   PaintingStyle paintingStyle,
@@ -178,10 +201,17 @@ DrawablePaint _getDefinitionPaint(
   StrokeCap? strokeCap,
   StrokeJoin? strokeJoin,
 }) {
-  final Shader? shader = definitions.getShader(iri, bounds);
-  if (shader == null) {
-    reportMissingDef(key, iri, '_getDefinitionPaint');
-  }
+  final Shader shader = definitions.getShader(iri, bounds) ??
+      LateShader(
+        iri,
+        bounds,
+        paintingStyle,
+        color: opacity != null ? Color.fromRGBO(255, 255, 255, opacity) : null,
+        strokeCap: strokeCap,
+        strokeJoin: strokeJoin,
+        strokeMiterLimit: strokeMiterLimit,
+        strokeWidth: strokeWidth,
+      );
 
   return DrawablePaint(
     paintingStyle,
