@@ -12,6 +12,9 @@ import 'render_picture.dart' as render_picture;
 import 'svg/parsers.dart' show affineMatrix;
 import 'svg/xml_parsers.dart';
 
+/// reg exp matcher to match 'clip-path' in  'url(#clip-path)'
+final idUrlReference = RegExp(r'url\(#(.+)\)');
+
 final _log = Logger('flutter_svg');
 
 mixin DrawableClipPaths {
@@ -90,10 +93,13 @@ abstract class DrawableParent
 /// A containers for Clippaths, keeping track of the shapes wihtin it
 /// So we know how it was created.
 class ClipPath {
+  ClipPath(this.id, this.transform) : shapes = [];
+
   final String id;
   final Float64List? transform;
   final List<DrawableShape> shapes;
-  ClipPath(this.id, this.transform) : shapes = [];
+
+  String get name => idUrlReference.firstMatch(id)?.group(1) ?? id;
 }
 
 /// Styling information for vector drawing.
@@ -1305,7 +1311,7 @@ class DrawableShape with DrawableAttributes implements DrawableStyleable {
     this.style, {
     this.transform,
     required List<XmlEventAttribute>? attributes,
-  })   : attributes = attributes ?? <XmlEventAttribute>[],
+  })  : attributes = attributes ?? <XmlEventAttribute>[],
         assert(path != null), // ignore: unnecessary_null_comparison
         assert(style != null); // ignore: unnecessary_null_comparison
 
