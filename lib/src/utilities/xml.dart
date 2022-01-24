@@ -14,6 +14,14 @@ String? getHrefAttribute(List<XmlEventAttribute>? attributes) => getAttribute(
       def: getAttribute(attributes, 'href'),
     );
 
+/// Return [defaultValue] if [value] is in [defaultSet]
+T? defaultIf<T>(T? value, Set<T> defaultSet, T defaultValue) {
+  if (defaultSet.contains(value)) {
+    return defaultValue;
+  }
+  return value;
+}
+
 /// Gets the attribute, trims it, and returns the attribute or default if the attribute
 /// is null or ''.
 ///

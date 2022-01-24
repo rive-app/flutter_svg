@@ -181,7 +181,7 @@ class LateShader implements Shader {
 
   final String iri;
   final Rect bounds;
-  final PaintingStyle style;
+  final PaintingStyle? style;
   final Color? color;
   final double? strokeWidth;
   final double? strokeMiterLimit;
@@ -191,7 +191,7 @@ class LateShader implements Shader {
 
 DrawablePaint _getDefinitionPaint(
   String? key,
-  PaintingStyle paintingStyle,
+  PaintingStyle? paintingStyle,
   String iri,
   DrawableDefinitionServer definitions,
   Rect bounds, {
@@ -232,7 +232,8 @@ DrawablePaint? parseStroke(
   DrawableDefinitionServer definitions,
   DrawablePaint? parentStroke,
 ) {
-  final String rawStroke = getAttribute(attributes, 'stroke')!;
+  final String rawStroke =
+      defaultIf(getAttribute(attributes, 'stroke'), {'none'}, '')!;
   final String? rawStrokeOpacity = getAttribute(
     attributes,
     'stroke-opacity',
@@ -244,19 +245,18 @@ DrawablePaint? parseStroke(
     opacity *= parseDouble(rawOpacity)!.clamp(0.0, 1.0);
   }
 
-  if (rawStroke == '' && DrawablePaint.isEmpty(parentStroke)) {
-    return null;
-  }
-  if (rawStroke == 'none') {
-    return DrawablePaint.empty;
-  }
+  final PaintingStyle? style =
+      (rawStroke != '' || parentStroke?.style == PaintingStyle.stroke)
+          ? PaintingStyle.stroke
+          : null;
 
-  final String? rawStrokeCap = getAttribute(attributes, 'stroke-linecap');
+  final String? rawStrokeCap =
+      defaultIf(getAttribute(attributes, 'stroke-linecap'), {'null'}, '');
   final String? rawLineJoin = getAttribute(attributes, 'stroke-linejoin');
   final String? rawMiterLimit = getAttribute(attributes, 'stroke-miterlimit');
   final String? rawStrokeWidth = getAttribute(attributes, 'stroke-width');
 
-  final StrokeCap strokeCap = rawStrokeCap == 'null'
+  final StrokeCap strokeCap = rawStrokeCap == ''
       ? parentStroke?.strokeCap ?? StrokeCap.butt
       : StrokeCap.values.firstWhere(
           (StrokeCap sc) => sc.toString() == 'StrokeCap.$rawStrokeCap',
@@ -278,7 +278,7 @@ DrawablePaint? parseStroke(
   if (rawStroke.startsWith('url')) {
     return _getDefinitionPaint(
       key,
-      PaintingStyle.stroke,
+      style,
       rawStroke,
       definitions,
       bounds!,
@@ -291,7 +291,7 @@ DrawablePaint? parseStroke(
   }
 
   final DrawablePaint paint = DrawablePaint(
-    PaintingStyle.stroke,
+    style,
     color: rawStroke == ''
         ? (parentStroke?.color ?? colorBlack).withOpacity(opacity)
         : parseColor(rawStroke)!.withOpacity(opacity),

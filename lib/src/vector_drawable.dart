@@ -244,7 +244,7 @@ class DrawablePaint {
     }
 
     // If we got here, the styles should not be null.
-    assert(a.style == b!.style,
+    assert(a.style == null || b!.style == null || a.style == b.style,
         'Cannot merge Paints with different PaintStyles; got:\na: $a\nb: $b.');
 
     return DrawablePaint(
@@ -341,7 +341,7 @@ class DrawablePaint {
     if (maskFilter != null) {
       paint.maskFilter = maskFilter;
     }
-    if (shader != null) {
+    if (shader != null && shader is! LateShader) {
       paint.shader = shader;
     }
     if (strokeCap != null) {
@@ -1364,8 +1364,9 @@ class DrawableShape with DrawableAttributes implements DrawableStyleable {
         canvas.drawPath(path, style.fill!.toFlutterPaint());
       }
 
-      if (style.stroke?.style != null) {
-        assert(style.stroke!.style == PaintingStyle.stroke);
+      // we introduced strokes with a "null" style to inherit stroke attributes
+      if (style.stroke?.style != null &&
+          style.stroke?.style == PaintingStyle.stroke) {
         if (style.dashArray != null &&
             !identical(style.dashArray, DrawableStyle.emptyDashArray)) {
           canvas.drawPath(
