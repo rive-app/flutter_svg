@@ -232,6 +232,7 @@ class _Elements {
       ),
       attributes: parserState.attributes,
     );
+    // we shouldnt have to worry about a self closing svg.
     parserState.addGroup(parserState._currentStartElement!, parserState._root);
     return null;
   }
@@ -254,7 +255,9 @@ class _Elements {
     if (!parserState._inDefs) {
       parent.children!.add(group);
     }
-    parserState.addGroup(parserState._currentStartElement!, group);
+    if (!parserState._currentStartElement!.isSelfClosing) {
+      parserState.addGroup(parserState._currentStartElement!, group);
+    }
     return null;
   }
 
@@ -274,7 +277,11 @@ class _Elements {
       transform: parseTransform(parserState.attribute('transform'))?.storage,
       attributes: parserState.attributes,
     );
-    parserState.addGroup(parserState._currentStartElement!, group);
+
+    if (!parserState._currentStartElement!.isSelfClosing) {
+      parserState.addGroup(parserState._currentStartElement!, group);
+    }
+
     parent.addMask(group);
     return null;
   }
@@ -676,68 +683,72 @@ class _Elements {
         parseTransform(parserState.attribute('transform'))?.storage;
 
     final clipPath = ClipPath(id, transform);
-    for (XmlEvent event in parserState._readSubtree()) {
-      if (event is XmlEndElementEvent) {
-        continue;
-      }
-      if (event is XmlStartElementEvent) {
-        final _PathFunc? pathFn = _svgPathFuncs[event.name];
+    if (!parserState._currentStartElement!.isSelfClosing) {
+      for (XmlEvent event in parserState._readSubtree()) {
+        if (event is XmlEndElementEvent) {
+          continue;
+        }
+        if (event is XmlStartElementEvent) {
+          final _PathFunc? pathFn = _svgPathFuncs[event.name];
 
-        if (pathFn != null) {
-          final Path path = pathFn(parserState.attributes)!;
-          final DrawableShape drawable = DrawableShape(
-            // TODO: this id thing right?
-            id,
-            path,
-            parseStyle(
-              parserState.key,
-              parserState.attributes,
-              parserState.definitions,
-              path.getBounds(),
-              const DrawableStyle(fill: DrawablePaint.empty),
-              defaultFillColor: Color.fromARGB(0, 0, 0, 0),
-            ),
-            attributes: parserState.attributes,
-            transform: parseTransform(
-                    getAttribute(parserState.attributes, 'transform'))
-                ?.storage,
-          );
+          if (pathFn != null) {
+            final Path path = pathFn(parserState.attributes)!;
+            final DrawableShape drawable = DrawableShape(
+              // TODO: this id thing right?
+              id,
+              path,
+              parseStyle(
+                parserState.key,
+                parserState.attributes,
+                parserState.definitions,
+                path.getBounds(),
+                const DrawableStyle(fill: DrawablePaint.empty),
+                defaultFillColor: Color.fromARGB(0, 0, 0, 0),
+              ),
+              attributes: parserState.attributes,
+              transform: parseTransform(
+                      getAttribute(parserState.attributes, 'transform'))
+                  ?.storage,
+            );
 
-          clipPath.shapes.add(drawable);
-        } else if (event.name == 'use') {
-          final String? xlinkHref = getHrefAttribute(parserState.attributes);
-          final DrawableStyleable? definitionDrawable =
-              parserState._definitions.getDrawable('url($xlinkHref)');
+            clipPath.shapes.add(drawable);
+          } else if (event.name == 'use') {
+            final String? xlinkHref = getHrefAttribute(parserState.attributes);
+            final DrawableStyleable? definitionDrawable =
+                parserState._definitions.getDrawable('url($xlinkHref)');
 
-          void extractPathsFromDrawable(Drawable? target) {
-            if (target is DrawableShape) {
-              clipPath.shapes.add(target);
-            } else if (target is DrawableGroup) {
-              target.children!.forEach(extractPathsFromDrawable);
-            }
-          }
-
-          extractPathsFromDrawable(definitionDrawable);
-        } else {
-          final String errorMessage =
-              'Unsupported clipPath child ${event.name}';
-          if (warningsAsErrors) {
-            throw UnsupportedError(errorMessage);
-          }
-          FlutterError.reportError(FlutterErrorDetails(
-            exception: UnsupportedError(errorMessage),
-            informationCollector: () sync* {
-              yield ErrorDescription(
-                  'The <clipPath> element contained an unsupported child ${event.name}');
-              if (parserState._key != null) {
-                yield ErrorDescription('');
-                yield DiagnosticsProperty<String>(
-                    'Picture key', parserState._key);
+            void extractPathsFromDrawable(Drawable? target) {
+              if (target is DrawableShape) {
+                clipPath.shapes.add(target);
+              } else if (target is DrawableGroup) {
+                target.children!.forEach(extractPathsFromDrawable);
               }
-            },
-            library: 'SVG',
-            context: ErrorDescription('in _Element.clipPath'),
-          ));
+            }
+
+            extractPathsFromDrawable(definitionDrawable);
+          } else {
+            print('HELLO');
+            print(event);
+            final String errorMessage =
+                'Unsupported clipPath child ${event.name}';
+            if (warningsAsErrors) {
+              throw UnsupportedError(errorMessage);
+            }
+            FlutterError.reportError(FlutterErrorDetails(
+              exception: UnsupportedError(errorMessage),
+              informationCollector: () sync* {
+                yield ErrorDescription(
+                    'The <clipPath> element contained an unsupported child ${event.name}');
+                if (parserState._key != null) {
+                  yield ErrorDescription('');
+                  yield DiagnosticsProperty<String>(
+                      'Picture key', parserState._key);
+                }
+              },
+              library: 'SVG',
+              context: ErrorDescription('in _Element.clipPath'),
+            ));
+          }
         }
       }
     }
