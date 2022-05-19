@@ -511,5 +511,6 @@ DrawableStyle parseStyle(
       ),
     ),
     blendMode: _blendModes[getAttribute(attributes, 'mix-blend-mode')!],
+    bounds: bounds,
   );
 }

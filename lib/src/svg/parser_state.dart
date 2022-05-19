@@ -23,7 +23,8 @@ final Set<String> _unhandledElements = <String>{'title', 'desc'};
 
 typedef _ParseFunc = Future<void>? Function(
     SvgParserState parserState, bool warningsAsErrors);
-typedef _PathFunc = Path? Function(List<XmlEventAttribute>? attributes);
+typedef _PathFunc = Path? Function(
+    List<XmlEventAttribute>? attributes, Rect? bounds);
 
 const Map<String, _ParseFunc> _svgElementParsers = <String, _ParseFunc>{
   'svg': _Elements.svg,
@@ -692,7 +693,8 @@ class _Elements {
           final _PathFunc? pathFn = _svgPathFuncs[event.name];
 
           if (pathFn != null) {
-            final Path path = pathFn(parserState.attributes)!;
+            final Path path = pathFn(parserState.attributes,
+                parserState.currentGroup?.style?.bounds)!;
             final DrawableShape drawable = DrawableShape(
               // TODO: this id thing right?
               id,
@@ -764,12 +766,24 @@ class _Elements {
       return;
     }
     final Offset offset = Offset(
-      parseDouble(parserState.attribute('x', def: '0'))!,
-      parseDouble(parserState.attribute('y', def: '0'))!,
+      parseDouble(
+        parserState.attribute('x', def: '0'),
+        parentExtent: parserState.rootBounds.height,
+      )!,
+      parseDouble(
+        parserState.attribute('y', def: '0'),
+        parentExtent: parserState.rootBounds.height,
+      )!,
     );
     final Size size = Size(
-      parseDouble(parserState.attribute('width', def: '0'))!,
-      parseDouble(parserState.attribute('height', def: '0'))!,
+      parseDouble(
+        parserState.attribute('width', def: '0'),
+        parentExtent: parserState.rootBounds.width,
+      )!,
+      parseDouble(
+        parserState.attribute('height', def: '0'),
+        parentExtent: parserState.rootBounds.height,
+      )!,
     );
     try {
       final Image image = await resolveImage(href);
@@ -1129,24 +1143,49 @@ RivePath? parseSvgPathData(String? svg) {
 }
 
 class _Paths {
-  static RivePath circle(List<XmlEventAttribute>? attributes) {
-    final double cx = parseDouble(getAttribute(attributes, 'cx', def: '0'))!;
-    final double cy = parseDouble(getAttribute(attributes, 'cy', def: '0'))!;
-    final double r = parseDouble(getAttribute(attributes, 'r', def: '0'))!;
+  static RivePath circle(List<XmlEventAttribute>? attributes, Rect? bounds) {
+    final double cx = parseDouble(
+      getAttribute(
+        attributes,
+        'cx',
+        def: '0',
+      ),
+      parentExtent: bounds?.width,
+    )!;
+    final double cy = parseDouble(
+      getAttribute(attributes, 'cy', def: '0'),
+      parentExtent: bounds?.height,
+    )!;
+    final double r = parseDouble(
+      getAttribute(attributes, 'r', def: '0'),
+      parentExtent: bounds?.width,
+    )!;
     final Rect oval = Rect.fromCircle(center: Offset(cx, cy), radius: r);
     return RivePath()..addOval(oval);
   }
 
-  static RivePath? path(List<XmlEventAttribute>? attributes) {
+  static RivePath? path(List<XmlEventAttribute>? attributes, Rect? bounds) {
     final String d = getAttribute(attributes, 'd')!;
     return parseSvgPathData(d);
   }
 
-  static RivePath rect(List<XmlEventAttribute>? attributes) {
-    final double x = parseDouble(getAttribute(attributes, 'x', def: '0'))!;
-    final double y = parseDouble(getAttribute(attributes, 'y', def: '0'))!;
-    final double w = parseDouble(getAttribute(attributes, 'width', def: '0'))!;
-    final double h = parseDouble(getAttribute(attributes, 'height', def: '0'))!;
+  static RivePath rect(List<XmlEventAttribute>? attributes, Rect? bounds) {
+    final double x = parseDouble(
+      getAttribute(attributes, 'x', def: '0'),
+      parentExtent: bounds?.width,
+    )!;
+    final double y = parseDouble(
+      getAttribute(attributes, 'y', def: '0'),
+      parentExtent: bounds?.height,
+    )!;
+    final double w = parseDouble(
+      getAttribute(attributes, 'width', def: '0'),
+      parentExtent: bounds?.width,
+    )!;
+    final double h = parseDouble(
+      getAttribute(attributes, 'height', def: '0'),
+      parentExtent: bounds?.height,
+    )!;
     final Rect rect = Rect.fromLTWH(x, y, w, h);
     String? rxRaw = getAttribute(attributes, 'rx', def: null);
     String? ryRaw = getAttribute(attributes, 'ry', def: null);
@@ -1163,11 +1202,11 @@ class _Paths {
     return RivePath()..addRect(rect);
   }
 
-  static RivePath? polygon(List<XmlEventAttribute>? attributes) {
+  static RivePath? polygon(List<XmlEventAttribute>? attributes, Rect? bounds) {
     return parsePathFromPoints(attributes, true);
   }
 
-  static RivePath? polyline(List<XmlEventAttribute>? attributes) {
+  static RivePath? polyline(List<XmlEventAttribute>? attributes, Rect? bounds) {
     return parsePathFromPoints(attributes, false);
   }
 
@@ -1182,21 +1221,45 @@ class _Paths {
     return parseSvgPathData(path);
   }
 
-  static RivePath? ellipse(List<XmlEventAttribute>? attributes) {
-    final double cx = parseDouble(getAttribute(attributes, 'cx', def: '0'))!;
-    final double cy = parseDouble(getAttribute(attributes, 'cy', def: '0'))!;
-    final double rx = parseDouble(getAttribute(attributes, 'rx', def: '0'))!;
-    final double ry = parseDouble(getAttribute(attributes, 'ry', def: '0'))!;
+  static RivePath? ellipse(List<XmlEventAttribute>? attributes, Rect? bounds) {
+    final double cx = parseDouble(
+      getAttribute(attributes, 'cx', def: '0'),
+      parentExtent: bounds?.width,
+    )!;
+    final double cy = parseDouble(
+      getAttribute(attributes, 'cy', def: '0'),
+      parentExtent: bounds?.height,
+    )!;
+    final double rx = parseDouble(
+      getAttribute(attributes, 'rx', def: '0'),
+      parentExtent: bounds?.width,
+    )!;
+    final double ry = parseDouble(
+      getAttribute(attributes, 'ry', def: '0'),
+      parentExtent: bounds?.height,
+    )!;
 
     final Rect r = Rect.fromLTWH(cx - rx, cy - ry, rx * 2, ry * 2);
     return RivePath()..addOval(r);
   }
 
-  static RivePath? line(List<XmlEventAttribute>? attributes) {
-    final double x1 = parseDouble(getAttribute(attributes, 'x1', def: '0'))!;
-    final double x2 = parseDouble(getAttribute(attributes, 'x2', def: '0'))!;
-    final double y1 = parseDouble(getAttribute(attributes, 'y1', def: '0'))!;
-    final double y2 = parseDouble(getAttribute(attributes, 'y2', def: '0'))!;
+  static RivePath? line(List<XmlEventAttribute>? attributes, Rect? bounds) {
+    final double x1 = parseDouble(
+      getAttribute(attributes, 'x1', def: '0'),
+      parentExtent: bounds?.width,
+    )!;
+    final double x2 = parseDouble(
+      getAttribute(attributes, 'x2', def: '0'),
+      parentExtent: bounds?.height,
+    )!;
+    final double y1 = parseDouble(
+      getAttribute(attributes, 'y1', def: '0'),
+      parentExtent: bounds?.width,
+    )!;
+    final double y2 = parseDouble(
+      getAttribute(attributes, 'y2', def: '0'),
+      parentExtent: bounds?.height,
+    )!;
 
     return RivePath()
       ..moveTo(x1, y1)
@@ -1458,7 +1521,7 @@ class SvgParserState {
 
     final DrawableParent parent = _parentDrawables.last.drawable!;
     final DrawableStyle? parentStyle = parent.style;
-    final Path path = pathFunc(attributes)!;
+    final Path path = pathFunc(attributes, parent.style?.bounds)!;
     final DrawableStyleable drawable = DrawableShape(
       getAttribute(attributes, 'id', def: ''),
       path,
