@@ -525,6 +525,10 @@ class DrawableText implements Drawable {
     this.offset,
     this.anchor, {
     this.transform,
+    this.fillColor,
+    this.strokeColor,
+    this.textStyle,
+    this.text = '',
   }) : assert(fill != null || stroke != null);
 
   @override
@@ -546,6 +550,21 @@ class DrawableText implements Drawable {
 
   /// A transform to apply when drawing the text.
   final Float64List? transform;
+
+  /// A fillColor.
+  final Color? fillColor;
+
+  /// A strokeColor.
+  final Color? strokeColor;
+
+  /// text style.
+  final DrawableTextStyle? textStyle;
+
+  /// the text.
+  final String text;
+
+  /// list of runs
+  final List<DrawableShape> spans = <DrawableShape>[];
 
   @override
   bool get hasDrawableContent =>

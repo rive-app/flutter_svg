@@ -854,6 +854,10 @@ class _Elements {
           lastTextInfo.style.textStyle!.anchor ??
               DrawableTextAnchorPosition.start,
           transform: lastTextInfo.transform?.storage,
+          fillColor: lastTextInfo.style.fill?.color,
+          strokeColor: lastTextInfo.style.stroke?.color,
+          textStyle: lastTextInfo.style.textStyle,
+          text: value,
         ),
       );
       lastTextWidth = fill.maxIntrinsicWidth;
@@ -1428,6 +1432,7 @@ class SvgParserState {
         _currentStartElement = event;
         depth += 1;
         isSelfClosing = event.isSelfClosing;
+        print(event.name);
         _elementsStack.add(event.name);
       }
       yield event;
