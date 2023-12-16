@@ -6,9 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/src/utilities/errors.dart';
 import 'package:logging/logging.dart';
 import 'package:path_drawing/path_drawing.dart';
+import 'package:path_parsing/path_parsing.dart';
 import 'package:vector_math/vector_math_64.dart';
 import 'package:xml/xml_events.dart' hide parseEvents;
-import 'package:path_parsing/path_parsing.dart';
 
 import '../utilities/numbers.dart';
 import '../utilities/xml.dart';
@@ -115,15 +115,17 @@ String? _getAttributeWithBackup(
   );
 }
 
-class _TextInfo {
-  const _TextInfo(
+class TextInfo {
+  const TextInfo(
     this.style,
     this.offset,
     this.transform,
+    this.xyOffset,
   );
 
   final DrawableStyle style;
   final Offset offset;
+  final Offset xyOffset;
   final Matrix4? transform;
 
   @override
@@ -729,8 +731,6 @@ class _Elements {
 
             extractPathsFromDrawable(definitionDrawable);
           } else {
-            print('HELLO');
-            print(event);
             final String errorMessage =
                 'Unsupported clipPath child ${event.name}';
             if (warningsAsErrors) {
@@ -824,15 +824,18 @@ class _Elements {
     // <tref> TBD - looks like Inkscape supports it, but no browser does.
     // XmlNodeType.TEXT/CDATA -> DrawableText
     // Track the style(s) and offset(s) for <text> and <tspan> elements
-    final Queue<_TextInfo> textInfos = ListQueue<_TextInfo>();
+    final Queue<TextInfo> textInfos = ListQueue<TextInfo>();
     double lastTextWidth = 0;
+    Offset currentXYOffset = const Offset(0, 0);
+
+    DrawableTextContainer? textContainer;
 
     void _processText(String value) {
       if (value.isEmpty) {
         return;
       }
       assert(textInfos.isNotEmpty);
-      final _TextInfo lastTextInfo = textInfos.last;
+      final TextInfo lastTextInfo = textInfos.last;
       final Paragraph fill = createParagraph(
         value,
         lastTextInfo.style,
@@ -854,17 +857,14 @@ class _Elements {
           lastTextInfo.style.textStyle!.anchor ??
               DrawableTextAnchorPosition.start,
           transform: lastTextInfo.transform?.storage,
-          fillColor: lastTextInfo.style.fill?.color,
-          strokeColor: lastTextInfo.style.stroke?.color,
-          textStyle: lastTextInfo.style.textStyle,
-          text: value,
         ),
       );
       lastTextWidth = fill.maxIntrinsicWidth;
+      textContainer!.addRun(value, lastTextInfo);
     }
 
     void _processStartElement(XmlStartElementEvent event) {
-      _TextInfo? lastTextInfo;
+      TextInfo? lastTextInfo;
       if (textInfos.isNotEmpty) {
         lastTextInfo = textInfos.last;
       }
@@ -872,6 +872,11 @@ class _Elements {
         parserState,
         lastTextInfo?.offset.translate(lastTextWidth, 0),
       );
+      final Offset xyOffset = _parseCurrentOffset(
+        parserState,
+        currentXYOffset,
+      );
+      currentXYOffset = xyOffset;
       Matrix4? transform = parseTransform(parserState.attribute('transform'));
       if (lastTextInfo?.transform != null) {
         if (transform == null) {
@@ -881,7 +886,13 @@ class _Elements {
         }
       }
 
-      textInfos.add(_TextInfo(
+      textContainer = DrawableTextContainer(
+          parserState.attribute('id', def: ''),
+          transform?.storage,
+          currentOffset);
+      parserState.currentGroup!.children!.add(textContainer!);
+
+      textInfos.add(TextInfo(
         parseStyle(
           parserState._key,
           parserState.attributes,
@@ -891,7 +902,42 @@ class _Elements {
         ),
         currentOffset,
         transform,
+        currentXYOffset,
       ));
+      if (event.isSelfClosing) {
+        textInfos.removeLast();
+      }
+    }
+
+    void _processChildElement(XmlStartElementEvent event) {
+      TextInfo? lastTextInfo;
+      if (textInfos.isNotEmpty) {
+        lastTextInfo = textInfos.last;
+      }
+      final Offset currentOffset = _parseCurrentOffset(
+        parserState,
+        lastTextInfo?.offset.translate(lastTextWidth, 0),
+      );
+      final Offset xyOffset = _parseCurrentOffset(
+        parserState,
+        currentXYOffset,
+      );
+      currentXYOffset = xyOffset;
+
+      final TextInfo textInfo = TextInfo(
+        parseStyle(
+          parserState._key,
+          parserState.attributes,
+          parserState._definitions,
+          parserState.rootBounds,
+          lastTextInfo?.style ?? parserState.currentGroup!.style,
+        ),
+        currentOffset,
+        lastTextInfo!.transform,
+        currentXYOffset,
+      );
+
+      textInfos.add(textInfo);
       if (event.isSelfClosing) {
         textInfos.removeLast();
       }
@@ -906,7 +952,7 @@ class _Elements {
         _processText(event.text.trim());
       }
       if (event is XmlStartElementEvent) {
-        _processStartElement(event);
+        _processChildElement(event);
       } else if (event is XmlEndElementEvent) {
         textInfos.removeLast();
       }
@@ -1432,7 +1478,6 @@ class SvgParserState {
         _currentStartElement = event;
         depth += 1;
         isSelfClosing = event.isSelfClosing;
-        print(event.name);
         _elementsStack.add(event.name);
       }
       yield event;
