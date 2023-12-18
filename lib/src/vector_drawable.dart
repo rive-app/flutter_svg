@@ -516,7 +516,7 @@ enum DrawableTextAnchorPosition {
 
 class DrawableTextRun {
   DrawableTextRun(this.text, this.style, this.offset);
-  final String text;
+  String text;
   final int style;
   final Offset offset;
 }
@@ -565,6 +565,12 @@ class DrawableTextContainer implements Drawable {
       styleIndex = textInfos.length - 1;
     }
     runs.add(DrawableTextRun(text, styleIndex, textInfo.xyOffset));
+  }
+
+  void addNewLineToLastRun() {
+    if (runs.isNotEmpty) {
+      runs.last.text += '\n\r';
+    }
   }
 
   @override

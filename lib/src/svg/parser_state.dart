@@ -90,6 +90,25 @@ Offset _parseCurrentOffset(SvgParserState parserState, Offset? lastOffset) {
   );
 }
 
+Offset _parseCurrentXYOffset(SvgParserState parserState, Offset? lastOffset) {
+  return Offset(
+    parseDouble(parserState.attribute('dx', def: '0'))! + (lastOffset?.dx ?? 0),
+    parseDouble(parserState.attribute('dy', def: '0'))! + (lastOffset?.dy ?? 0),
+  );
+}
+
+Offset? _parseTspanXY(SvgParserState parserState) {
+  final String? x = parserState.attribute('x', def: null);
+  final String? y = parserState.attribute('y', def: null);
+  if (x != null && y != null) {
+    return Offset(
+      parseDouble(x)!,
+      parseDouble(y)!,
+    );
+  }
+  return null;
+}
+
 String? _getAttributeWithBackup(
   List<XmlEventAttribute> el,
   List<XmlEventAttribute>? backup,
@@ -827,11 +846,12 @@ class _Elements {
     final Queue<TextInfo> textInfos = ListQueue<TextInfo>();
     double lastTextWidth = 0;
     Offset currentXYOffset = const Offset(0, 0);
+    bool isFirstTextRun = true;
 
     DrawableTextContainer? textContainer;
 
     void _processText(String value) {
-      if (value.isEmpty) {
+      if (value.trim().isEmpty) {
         return;
       }
       assert(textInfos.isNotEmpty);
@@ -861,6 +881,7 @@ class _Elements {
       );
       lastTextWidth = fill.maxIntrinsicWidth;
       textContainer!.addRun(value, lastTextInfo);
+      isFirstTextRun = false;
     }
 
     void _processStartElement(XmlStartElementEvent event) {
@@ -918,10 +939,23 @@ class _Elements {
         parserState,
         lastTextInfo?.offset.translate(lastTextWidth, 0),
       );
-      final Offset xyOffset = _parseCurrentOffset(
+      final xyOffsetParser =
+          isFirstTextRun ? _parseCurrentOffset : _parseCurrentXYOffset;
+      final Offset xyOffset = xyOffsetParser(
         parserState,
         currentXYOffset,
       );
+      // We decided not to support absolute x,y positioning in tspans because
+      // there is not a straightforward way to translate them to Rive.
+      // But this code is hacking a specific scenario where we assume that
+      // absolute positioning means a new line, so we insert a new line to
+      // the previous DrawableTextRun
+      final Offset? xyAbsoluteOffset = _parseTspanXY(parserState);
+      if (xyAbsoluteOffset != null &&
+          xyAbsoluteOffset.dx == 0 &&
+          xyAbsoluteOffset.dy != 0) {
+        textContainer!.addNewLineToLastRun();
+      }
       currentXYOffset = xyOffset;
 
       final TextInfo textInfo = TextInfo(
@@ -947,9 +981,9 @@ class _Elements {
 
     for (XmlEvent event in parserState._readSubtree()) {
       if (event is XmlCDATAEvent) {
-        _processText(event.text.trim());
+        _processText(event.text);
       } else if (event is XmlTextEvent) {
-        _processText(event.text.trim());
+        _processText(event.text);
       }
       if (event is XmlStartElementEvent) {
         _processChildElement(event);
