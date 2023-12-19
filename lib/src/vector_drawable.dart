@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:flutter_svg/internals.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:path_drawing/path_drawing.dart';
@@ -511,6 +512,73 @@ enum DrawableTextAnchorPosition {
 
   /// The offset specifies the end of the text.
   end,
+}
+
+class DrawableTextRun {
+  DrawableTextRun(this.text, this.style, this.offset);
+  String text;
+  final int style;
+  final Offset offset;
+}
+
+/// A [Drawable] for text with spans and styles.
+class DrawableTextContainer implements Drawable {
+  DrawableTextContainer(
+    this.id,
+    this.transform,
+    this.offset,
+  );
+
+  /// A transform to apply when drawing the text.
+  final Float64List? transform;
+
+  final Offset offset;
+
+  /// list of runs
+  final List<DrawableTextRun> runs = <DrawableTextRun>[];
+
+  /// list of styles
+  final List<TextInfo> textInfos = <TextInfo>[];
+
+  void addRun(String text, TextInfo textInfo) {
+    bool isEqual = false;
+    int styleIndex = 0;
+    // Search for existing style to avoid repeating similar styles
+    // TODO: might need to validate other properties
+    for (TextInfo addedTextInfo in textInfos) {
+      final DrawableStyle style = addedTextInfo.style;
+      if (style.fill?.color != textInfo.style.fill?.color ||
+          style.stroke?.color != textInfo.style.stroke?.color ||
+          style.stroke?.strokeWidth != textInfo.style.stroke?.strokeWidth ||
+          style.textStyle?.fontFamily != textInfo.style.textStyle?.fontFamily ||
+          style.textStyle?.fontStyle != textInfo.style.textStyle?.fontStyle ||
+          style.textStyle?.fontSize != textInfo.style.textStyle?.fontSize ||
+          style.textStyle?.fontWeight != textInfo.style.textStyle?.fontWeight) {
+        styleIndex += 1;
+        continue;
+      }
+      isEqual = true;
+      break;
+    }
+    if (!isEqual) {
+      textInfos.add(textInfo);
+      styleIndex = textInfos.length - 1;
+    }
+    runs.add(DrawableTextRun(text, styleIndex, textInfo.xyOffset));
+  }
+
+  void addNewLineToLastRun() {
+    if (runs.isNotEmpty) {
+      runs.last.text += '\n\r';
+    }
+  }
+
+  @override
+  final String? id;
+  @override
+  void draw(Canvas canvas, Rect bounds) {}
+  @override
+  bool get hasDrawableContent => false;
 }
 
 /// A [Drawable] for text objects.
