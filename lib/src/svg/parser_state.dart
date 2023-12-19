@@ -97,7 +97,7 @@ Offset _parseCurrentXYOffset(SvgParserState parserState, Offset? lastOffset) {
   );
 }
 
-Offset? _parseTspanXY(SvgParserState parserState) {
+Offset? _parseXYOffset(SvgParserState parserState) {
   final String? x = parserState.attribute('x', def: null);
   final String? y = parserState.attribute('y', def: null);
   if (x != null && y != null) {
@@ -845,6 +845,8 @@ class _Elements {
     // Track the style(s) and offset(s) for <text> and <tspan> elements
     final Queue<TextInfo> textInfos = ListQueue<TextInfo>();
     double lastTextWidth = 0;
+
+    // This will hold the cumulative dx and dy of each tspan
     Offset currentXYOffset = const Offset(0, 0);
     bool isFirstTextRun = true;
 
@@ -856,6 +858,11 @@ class _Elements {
       }
       assert(textInfos.isNotEmpty);
       final TextInfo lastTextInfo = textInfos.last;
+
+      // Keeping the original DrawableText so the svg_viewer can still render
+      // texts. But we will be skipping then in the converter in favor of the
+      // single DrawableTextContainer that contains all styles and runs
+      // Legacy -->
       final Paragraph fill = createParagraph(
         value,
         lastTextInfo.style,
@@ -880,11 +887,13 @@ class _Elements {
         ),
       );
       lastTextWidth = fill.maxIntrinsicWidth;
+      // <-- Legacy
+
       textContainer!.addRun(value, lastTextInfo);
       isFirstTextRun = false;
     }
 
-    void _processStartElement(XmlStartElementEvent event) {
+    void _processTextElement(XmlStartElementEvent event) {
       TextInfo? lastTextInfo;
       if (textInfos.isNotEmpty) {
         lastTextInfo = textInfos.last;
@@ -893,11 +902,10 @@ class _Elements {
         parserState,
         lastTextInfo?.offset.translate(lastTextWidth, 0),
       );
-      final Offset xyOffset = _parseCurrentOffset(
+      currentXYOffset = _parseCurrentOffset(
         parserState,
         currentXYOffset,
       );
-      currentXYOffset = xyOffset;
       Matrix4? transform = parseTransform(parserState.attribute('transform'));
       if (lastTextInfo?.transform != null) {
         if (transform == null) {
@@ -941,24 +949,23 @@ class _Elements {
       );
       final xyOffsetParser =
           isFirstTextRun ? _parseCurrentOffset : _parseCurrentXYOffset;
-      final Offset xyOffset = xyOffsetParser(
+      currentXYOffset = xyOffsetParser(
         parserState,
         currentXYOffset,
       );
       // We decided not to support absolute x,y positioning in tspans because
       // there is not a straightforward way to translate them to Rive.
       // But this code is hacking a specific scenario where we assume that
-      // absolute positioning means a new line, so we insert a new line to
-      // the previous DrawableTextRun
-      final Offset? xyAbsoluteOffset = _parseTspanXY(parserState);
+      // absolute positioning means a new line if x == 0 and y != 0. So we
+      // insert a new line to the previous DrawableTextRun
+      final Offset? xyAbsoluteOffset = _parseXYOffset(parserState);
       if (xyAbsoluteOffset != null &&
           xyAbsoluteOffset.dx == 0 &&
           xyAbsoluteOffset.dy != 0) {
         textContainer!.addNewLineToLastRun();
       }
-      currentXYOffset = xyOffset;
 
-      final TextInfo textInfo = TextInfo(
+      textInfos.add(TextInfo(
         parseStyle(
           parserState._key,
           parserState.attributes,
@@ -969,15 +976,13 @@ class _Elements {
         currentOffset,
         lastTextInfo!.transform,
         currentXYOffset,
-      );
-
-      textInfos.add(textInfo);
+      ));
       if (event.isSelfClosing) {
         textInfos.removeLast();
       }
     }
 
-    _processStartElement(parserState._currentStartElement!);
+    _processTextElement(parserState._currentStartElement!);
 
     for (XmlEvent event in parserState._readSubtree()) {
       if (event is XmlCDATAEvent) {
