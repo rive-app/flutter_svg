@@ -1,5 +1,4 @@
 import 'dart:collection';
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -17,7 +16,7 @@ import 'colors.dart';
 import 'parsers.dart';
 import 'xml_parsers.dart';
 
-final _log = Logger('flutter_svg');
+final Logger _log = Logger('flutter_svg');
 
 final Set<String> _unhandledElements = <String>{'title', 'desc'};
 
@@ -50,6 +49,7 @@ const Map<String, _PathFunc> _svgPathFuncs = <String, _PathFunc>{
   'line': _Paths.line,
 };
 
+// ignore: camel_case_types
 enum pathFuncs {
   addOval,
   addRect,
@@ -999,52 +999,53 @@ class _Elements {
   }
 }
 
-class RivePath extends Path {
+class RivePath implements Path {
   RivePath()
-      : instructions = <dynamic>[],
+      : _nativePath = Path(),
         super();
 
-  List<dynamic> instructions;
+  final Path _nativePath;
+  final List<dynamic> instructions = [];
   @override
   void addOval(Rect oval) {
     instructions.add([pathFuncs.addOval, oval]);
-    super.addOval(oval);
+    _nativePath.addOval(oval);
   }
 
   @override
   void addRect(Rect rect) {
     instructions.add([pathFuncs.addRect, rect]);
-    super.addRect(rect);
+    _nativePath.addRect(rect);
   }
 
   @override
   void addRRect(RRect rrect) {
     instructions.add([pathFuncs.addRRect, rrect]);
-    super.addRRect(rrect);
+    _nativePath.addRRect(rrect);
   }
 
   @override
   void addPath(Path path, Offset offset, {Float64List? matrix4}) {
     instructions.add([pathFuncs.addPath, path, offset, matrix4]);
-    super.addPath(path, offset, matrix4: matrix4);
+    _nativePath.addPath(path, offset, matrix4: matrix4);
   }
 
   @override
   void addArc(Rect oval, double startAngle, double sweepAngle) {
     instructions.add([pathFuncs.addArc, startAngle, sweepAngle]);
-    super.addArc(oval, startAngle, sweepAngle);
+    _nativePath.addArc(oval, startAngle, sweepAngle);
   }
 
   @override
   void addPolygon(List<Offset> points, bool close) {
     instructions.add([pathFuncs.addPolygon, points, close]);
-    super.addPolygon(points, close);
+    _nativePath.addPolygon(points, close);
   }
 
   @override
   void lineTo(double x, double y) {
     instructions.add([pathFuncs.lineTo, x, y]);
-    super.lineTo(x, y);
+    _nativePath.lineTo(x, y);
   }
 
   @override
@@ -1057,7 +1058,7 @@ class RivePath extends Path {
       sweepAngle,
       forceMoveTo,
     ]);
-    super.arcTo(rect, startAngle, sweepAngle, forceMoveTo);
+    _nativePath.arcTo(rect, startAngle, sweepAngle, forceMoveTo);
   }
 
   @override
@@ -1074,7 +1075,7 @@ class RivePath extends Path {
       radius,
       rotation,
     ]);
-    super.arcToPoint(arcEnd,
+    _nativePath.arcToPoint(arcEnd,
         clockwise: clockwise,
         largeArc: largeArc,
         radius: radius,
@@ -1084,30 +1085,30 @@ class RivePath extends Path {
   @override
   void relativeMoveTo(double dx, double dy) {
     instructions.add([pathFuncs.relativeMoveTo, dx, dy]);
-    super.relativeMoveTo(dx, dy);
+    _nativePath.relativeMoveTo(dx, dy);
   }
 
   @override
   void relativeLineTo(double dx, double dy) {
     instructions.add([pathFuncs.relativeLineTo, dx, dy]);
-    super.relativeLineTo(dx, dy);
+    _nativePath.relativeLineTo(dx, dy);
   }
 
   @override
-  void relativeArcToPoint(Offset arcEnd,
+  void relativeArcToPoint(Offset arcEndDelta,
       {bool clockwise: true,
       bool largeArc: false,
       Radius radius: Radius.zero,
       double rotation: 0}) {
     instructions.add([
       pathFuncs.relativeArcToPoint,
-      arcEnd,
+      arcEndDelta,
       clockwise,
       largeArc,
       radius,
       rotation
     ]);
-    super.relativeArcToPoint(arcEnd,
+    _nativePath.relativeArcToPoint(arcEndDelta,
         clockwise: clockwise,
         largeArc: largeArc,
         radius: radius,
@@ -1129,7 +1130,7 @@ class RivePath extends Path {
   @override
   void quadraticBezierTo(double x1, double y1, double x2, double y2) {
     instructions.add([pathFuncs.quadraticBezierTo, x1, y1, x2, y2]);
-    super.quadraticBezierTo(x1, y1, x2, y2);
+    _nativePath.quadraticBezierTo(x1, y1, x2, y2);
   }
 
   @override
@@ -1140,46 +1141,73 @@ class RivePath extends Path {
     double y2,
   ) {
     instructions.add([pathFuncs.relativeQuadraticBezierTo, x1, y1, x2, y2]);
-    super.relativeQuadraticBezierTo(x1, y1, x2, y2);
+    _nativePath.relativeQuadraticBezierTo(x1, y1, x2, y2);
   }
 
   @override
   void close() {
     instructions.add([pathFuncs.close]);
-    super.close();
+    _nativePath.close();
   }
 
   @override
   void moveTo(double x, double y) {
     instructions.add([pathFuncs.moveTo, x, y]);
-    super.moveTo(x, y);
+    _nativePath.moveTo(x, y);
   }
 
   @override
   void conicTo(double x1, double y1, double x2, double y2, double w) {
     instructions.add([pathFuncs.conicTo, x1, y1, x2, y2, w]);
-    super.conicTo(x1, y1, x2, y2, w);
+    _nativePath.conicTo(x1, y1, x2, y2, w);
   }
 
   @override
   void relativeConicTo(double x1, double y1, double x2, double y2, double w) {
     instructions.add([pathFuncs.relativeConicTo, x1, y1, x2, y2, w]);
-    super.relativeConicTo(x1, y1, x2, y2, w);
+    _nativePath.relativeConicTo(x1, y1, x2, y2, w);
   }
 
   @override
   void cubicTo(
       double x1, double y1, double x2, double y2, double x3, double y3) {
     instructions.add([pathFuncs.cubicTo, x1, y1, x2, y2, x3, y3]);
-    super.cubicTo(x1, y1, x2, y2, x3, y3);
+    _nativePath.cubicTo(x1, y1, x2, y2, x3, y3);
   }
 
   @override
   void relativeCubicTo(
       double x1, double y1, double x2, double y2, double x3, double y3) {
     instructions.add([pathFuncs.relativeCubicTo, x1, y1, x2, y2, x3, y3]);
-    super.relativeCubicTo(x1, y1, x2, y2, x3, y3);
+    _nativePath.relativeCubicTo(x1, y1, x2, y2, x3, y3);
   }
+
+  @override
+  PathFillType get fillType => _nativePath.fillType;
+
+  @override
+  set fillType(PathFillType value) => _nativePath.fillType = value;
+
+  @override
+  PathMetrics computeMetrics({bool forceClosed = false}) {
+    return _nativePath.computeMetrics(forceClosed: forceClosed);
+  }
+
+  @override
+  bool contains(Offset point) => _nativePath.contains(point);
+
+  @override
+  void extendWithPath(Path path, Offset offset, {Float64List? matrix4}) =>
+      _nativePath.extendWithPath(path, offset, matrix4: matrix4);
+
+  @override
+  Rect getBounds() => _nativePath.getBounds();
+
+  @override
+  void reset() => _nativePath.reset();
+
+  @override
+  Path shift(Offset offset) => _nativePath.shift(offset);
 }
 
 class RivePathProxy extends FlutterPathProxy {
