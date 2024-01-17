@@ -532,7 +532,7 @@ class DrawableTextContainer implements Drawable {
   /// A transform to apply when drawing the text.
   final Float64List? transform;
 
-  final Offset offset;
+  Offset offset;
 
   /// list of runs
   final List<DrawableTextRun> runs = <DrawableTextRun>[];
@@ -571,6 +571,20 @@ class DrawableTextContainer implements Drawable {
     if (runs.isNotEmpty) {
       runs.last.text += '\n\r';
     }
+  }
+
+  void addToOffset(Offset offset) {
+    // If the text has a transform applied that changes its size, we can't add
+    // the text run offset to the text container
+    if (transform != null &&
+        (transform![0] != 1 ||
+            transform![1] != 0 ||
+            transform![2] != 0 ||
+            transform![3] != 1)) {
+      return;
+    }
+    this.offset =
+        Offset(this.offset.dx + offset.dx, this.offset.dy + offset.dy);
   }
 
   @override
