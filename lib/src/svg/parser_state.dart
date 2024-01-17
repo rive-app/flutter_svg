@@ -953,6 +953,12 @@ class _Elements {
         parserState,
         currentXYOffset,
       );
+      // We add the offset of the first text run to the text element
+      // to avoid an unnecessary modifier
+      if (isFirstTextRun &&
+          (currentXYOffset.dx != 0 || currentXYOffset.dy != 0)) {
+        textContainer!.addToOffset(currentXYOffset);
+      }
       // We decided not to support absolute x,y positioning in tspans because
       // there is not a straightforward way to translate them to Rive.
       // But this code is hacking a specific scenario where we assume that,
