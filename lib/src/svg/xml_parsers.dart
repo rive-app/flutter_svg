@@ -470,6 +470,23 @@ FontWeight? parseFontWeight(String? fontWeight, {FontWeight? parentWeight}) {
   //     ' is not supported');
 }
 
+/// Parses a `font-style` attribute value into a [FontStyle].
+FontStyle? parseFontStyle(String? fontStyle, {FontStyle? parentStyle}) {
+  if (fontStyle == null && parentStyle == null) {
+    return null;
+  }
+  switch (fontStyle) {
+    case 'normal':
+      return FontStyle.normal;
+    case 'italic':
+      return FontStyle.italic;
+  }
+  if (parentStyle != null) {
+    return parentStyle;
+  }
+  return null;
+}
+
 /// Parses style attributes or @style attribute.
 ///
 /// Remember that @style attribute takes precedence.
@@ -521,6 +538,9 @@ DrawableStyle parseStyle(
       anchor: parseTextAnchor(
         getAttribute(attributes, 'text-anchor', def: 'inherit'),
       ),
+      fontStyle: parseFontStyle(
+          getAttribute(attributes, 'font-style', def: null),
+          parentStyle: parentStyle?.textStyle?.fontStyle),
     ),
     blendMode: _blendModes[getAttribute(attributes, 'mix-blend-mode')!],
     bounds: bounds,
