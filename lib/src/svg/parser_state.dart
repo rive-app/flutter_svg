@@ -838,13 +838,13 @@ class _Elements {
     if (parserState._currentStartElement!.isSelfClosing) {
       return;
     }
-
     // <text>, <tspan> -> Collect styles
     // <tref> TBD - looks like Inkscape supports it, but no browser does.
     // XmlNodeType.TEXT/CDATA -> DrawableText
     // Track the style(s) and offset(s) for <text> and <tspan> elements
     final Queue<TextInfo> textInfos = ListQueue<TextInfo>();
     double lastTextWidth = 0;
+    double _lastYOffset = 0;
 
     // This will hold the cumulative dx and dy of each tspan
     Offset currentXYOffset = const Offset(0, 0);
@@ -962,13 +962,14 @@ class _Elements {
       // We decided not to support absolute x,y positioning in tspans because
       // there is not a straightforward way to translate them to Rive.
       // But this code is hacking a specific scenario where we assume that,
-      // if x == 0 and y != 0, it means a new line should be added. So we
+      // if y != _lastYOffset, it means a new line should be added. So we
       // insert a new line to the previous DrawableTextRun
       final Offset? xyAbsoluteOffset = _parseXYOffset(parserState);
       if (xyAbsoluteOffset != null &&
-          xyAbsoluteOffset.dx == 0 &&
-          xyAbsoluteOffset.dy != 0) {
+          xyAbsoluteOffset.dy != _lastYOffset &&
+          _lastYOffset < xyAbsoluteOffset.dy) {
         textContainer!.addNewLineToLastRun();
+        _lastYOffset = xyAbsoluteOffset.dy;
       }
 
       textInfos.add(TextInfo(
