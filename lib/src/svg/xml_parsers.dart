@@ -203,8 +203,7 @@ DrawablePaint _getDefinitionPaint(
 }) {
   final Shader? shader = definitions.getShader(iri, bounds);
   final LateShader? lateShader = shader == null
-      ? null
-      : LateShader(
+      ? LateShader(
           iri,
           bounds,
           paintingStyle,
@@ -214,7 +213,9 @@ DrawablePaint _getDefinitionPaint(
           strokeJoin: strokeJoin,
           strokeMiterLimit: strokeMiterLimit,
           strokeWidth: strokeWidth,
-        );
+        )
+      : null;
+  print("SHADER LATE SHADER $shader $lateShader");
 
   return DrawablePaint(
     paintingStyle,
