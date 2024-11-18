@@ -217,6 +217,7 @@ class DrawablePaint {
     this.style, {
     this.color,
     this.shader,
+    this.lateShader,
     this.blendMode,
     this.colorFilter,
     this.isAntiAlias,
@@ -284,6 +285,9 @@ class DrawablePaint {
 
   /// The [Shader] to use  when stroking or filling a shape.
   final Shader? shader;
+
+  /// The [LateShader] to use  when stroking or filling a shape.
+  final LateShader? lateShader;
 
   /// The [BlendMode] to use when stroking or filling a shape.
   final BlendMode? blendMode;

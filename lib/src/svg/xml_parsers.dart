@@ -167,7 +167,7 @@ double? parseOpacity(List<XmlEventAttribute>? attributes) {
   return null;
 }
 
-class LateShader implements Shader {
+class LateShader {
   LateShader(
     this.iri,
     this.bounds,
@@ -188,11 +188,11 @@ class LateShader implements Shader {
   final StrokeCap? strokeCap;
   final StrokeJoin? strokeJoin;
 
-  @override
-  bool get debugDisposed => false;
+  // @override
+  // bool get debugDisposed => false;
 
-  @override
-  void dispose() {}
+  // @override
+  // void dispose() {}
 }
 
 DrawablePaint _getDefinitionPaint(
@@ -207,21 +207,25 @@ DrawablePaint _getDefinitionPaint(
   StrokeCap? strokeCap,
   StrokeJoin? strokeJoin,
 }) {
-  final Shader shader = definitions.getShader(iri, bounds) ??
-      LateShader(
-        iri,
-        bounds,
-        paintingStyle,
-        color: opacity != null ? Color.fromRGBO(255, 255, 255, opacity) : null,
-        strokeCap: strokeCap,
-        strokeJoin: strokeJoin,
-        strokeMiterLimit: strokeMiterLimit,
-        strokeWidth: strokeWidth,
-      );
+  final Shader? shader = definitions.getShader(iri, bounds);
+  final LateShader? lateShader = shader == null
+      ? null
+      : LateShader(
+          iri,
+          bounds,
+          paintingStyle,
+          color:
+              opacity != null ? Color.fromRGBO(255, 255, 255, opacity) : null,
+          strokeCap: strokeCap,
+          strokeJoin: strokeJoin,
+          strokeMiterLimit: strokeMiterLimit,
+          strokeWidth: strokeWidth,
+        );
 
   return DrawablePaint(
     paintingStyle,
     shader: shader,
+    lateShader: lateShader,
     color: opacity != null ? Color.fromRGBO(255, 255, 255, opacity) : null,
     strokeCap: strokeCap,
     strokeJoin: strokeJoin,

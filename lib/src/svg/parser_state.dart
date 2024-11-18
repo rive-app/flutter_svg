@@ -1069,11 +1069,13 @@ class RivePath implements Path {
   }
 
   @override
-  void arcToPoint(Offset arcEnd,
-      {bool clockwise: true,
-      bool largeArc: false,
-      Radius radius: Radius.zero,
-      double rotation: 0}) {
+  void arcToPoint(
+    Offset arcEnd, {
+    bool clockwise = true,
+    bool largeArc = false,
+    Radius radius = Radius.zero,
+    double rotation = 0,
+  }) {
     instructions.add([
       pathFuncs.arcToPoint,
       arcEnd,
@@ -1102,11 +1104,13 @@ class RivePath implements Path {
   }
 
   @override
-  void relativeArcToPoint(Offset arcEndDelta,
-      {bool clockwise: true,
-      bool largeArc: false,
-      Radius radius: Radius.zero,
-      double rotation: 0}) {
+  void relativeArcToPoint(
+    Offset arcEndDelta, {
+    bool clockwise = true,
+    bool largeArc = false,
+    Radius radius = Radius.zero,
+    double rotation = 0,
+  }) {
     instructions.add([
       pathFuncs.relativeArcToPoint,
       arcEndDelta,
@@ -1660,10 +1664,9 @@ class SvgParserState {
       attributes: attributes,
       transform: parseTransform(getAttribute(attributes, 'transform'))?.storage,
     );
-
-    if (drawable.style?.fill?.shader is LateShader) {
-      final LateShader shader = drawable.style!.fill!.shader as LateShader;
-      _lateShaders[shader] = drawable;
+    final lateShader = drawable.style!.fill!.lateShader;
+    if (lateShader != null) {
+      _lateShaders[lateShader] = drawable;
     }
 
     final bool isIri = checkForIri(drawable);
