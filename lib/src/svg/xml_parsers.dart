@@ -187,12 +187,6 @@ class LateShader {
   final double? strokeMiterLimit;
   final StrokeCap? strokeCap;
   final StrokeJoin? strokeJoin;
-
-  // @override
-  // bool get debugDisposed => false;
-
-  // @override
-  // void dispose() {}
 }
 
 DrawablePaint _getDefinitionPaint(

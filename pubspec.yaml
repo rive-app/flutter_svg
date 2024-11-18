@@ -22,11 +22,3 @@ dev_dependencies:
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
-  # flutter: ">=1.24.0-6.0.pre"
-
-## For developing features that require new functionality in engine:
-# dependency_overrides:
-#  sky_engine:
-#    path: /Users/dnfield/engine/src/out/host_debug_unopt/gen/dart-pkg/sky_engine
-#  sky_services:
-#    path: /Users/dnfield/engine/src/out/host_debug_unopt/gen/dart-pkg/sky_services
