@@ -576,7 +576,7 @@ class DrawableTextContainer implements Drawable {
 
   void addNewLineToLastRun() {
     if (runs.isNotEmpty) {
-      runs.last.text += '\r\n';
+      runs.last.text += '\n';
     }
   }
 
