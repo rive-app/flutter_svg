@@ -200,20 +200,15 @@ DrawablePaint _getDefinitionPaint(
   double? strokeMiterLimit,
   StrokeCap? strokeCap,
   StrokeJoin? strokeJoin,
-  // currently always false, maybe kill..
-  bool defaultWhite = false,
 }) {
+  // NOTE WE DO NOT CREATE COLOR HERE, WE JUST DEPEND ON IT FOR OPACTIY
   final Shader? shader = definitions.getShader(iri, bounds);
-  final Color? color = (opacity != null && defaultWhite)
-      ? Color.fromRGBO(255, 255, 255, opacity)
-      : null;
 
   final LateShader? lateShader = shader == null
       ? LateShader(
           iri,
           bounds,
           paintingStyle,
-          color: color,
           strokeCap: strokeCap,
           strokeJoin: strokeJoin,
           strokeMiterLimit: strokeMiterLimit,
@@ -225,11 +220,11 @@ DrawablePaint _getDefinitionPaint(
     paintingStyle,
     shader: shader,
     lateShader: lateShader,
-    color: color,
     strokeCap: strokeCap,
     strokeJoin: strokeJoin,
     strokeMiterLimit: strokeMiterLimit,
     strokeWidth: strokeWidth,
+    opacity: opacity,
   );
 }
 
@@ -344,7 +339,6 @@ DrawablePaint? parseFill(
       definitions,
       bounds!,
       opacity: opacity,
-      defaultWhite: false,
     );
   }
   if (rawFill == '' && parentFill == DrawablePaint.empty) {

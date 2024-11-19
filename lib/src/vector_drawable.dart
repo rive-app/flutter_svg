@@ -227,6 +227,8 @@ class DrawablePaint {
     this.strokeJoin,
     this.strokeMiterLimit,
     this.strokeWidth,
+    // color has opacity, but shaders dont, so we carry it for them
+    this.opacity,
   });
 
   /// Will merge two DrawablePaints, preferring properties defined in `a` if they're not null.
@@ -270,6 +272,7 @@ class DrawablePaint {
       strokeJoin: a.strokeJoin ?? b!.strokeJoin,
       strokeMiterLimit: a.strokeMiterLimit ?? b!.strokeMiterLimit,
       strokeWidth: a.strokeWidth ?? b!.strokeWidth,
+      opacity: a.opacity ?? b!.opacity,
     );
   }
 
@@ -330,6 +333,9 @@ class DrawablePaint {
 
   /// The width of strokes for this paint.
   final double? strokeWidth;
+
+  /// The width of strokes for this paint.
+  final double? opacity;
 
   /// Creates a [Paint] object from this [DrawablePaint].
   Paint toFlutterPaint() {
