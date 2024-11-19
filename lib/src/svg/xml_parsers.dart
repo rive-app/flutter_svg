@@ -200,28 +200,31 @@ DrawablePaint _getDefinitionPaint(
   double? strokeMiterLimit,
   StrokeCap? strokeCap,
   StrokeJoin? strokeJoin,
+  bool defaultWhite = true,
 }) {
   final Shader? shader = definitions.getShader(iri, bounds);
+  final Color? color = (opacity != null && defaultWhite)
+      ? Color.fromRGBO(255, 255, 255, opacity)
+      : null;
+
   final LateShader? lateShader = shader == null
       ? LateShader(
           iri,
           bounds,
           paintingStyle,
-          color:
-              opacity != null ? Color.fromRGBO(255, 255, 255, opacity) : null,
+          color: color,
           strokeCap: strokeCap,
           strokeJoin: strokeJoin,
           strokeMiterLimit: strokeMiterLimit,
           strokeWidth: strokeWidth,
         )
       : null;
-  print("SHADER LATE SHADER $shader $lateShader");
 
   return DrawablePaint(
     paintingStyle,
     shader: shader,
     lateShader: lateShader,
-    color: opacity != null ? Color.fromRGBO(255, 255, 255, opacity) : null,
+    color: color,
     strokeCap: strokeCap,
     strokeJoin: strokeJoin,
     strokeMiterLimit: strokeMiterLimit,
@@ -244,6 +247,7 @@ DrawablePaint? parseStroke(
     'stroke-opacity',
     def: '1.0',
   );
+
   final String? rawOpacity = getAttribute(attributes, 'opacity');
   double opacity = parseDouble(rawStrokeOpacity)!.clamp(0.0, 1.0).toDouble();
   if (rawOpacity != '') {
@@ -320,12 +324,18 @@ DrawablePaint? parseFill(
   final String rawFill = getAttribute(el, 'fill')!;
   final String? rawFillOpacity = getAttribute(el, 'fill-opacity', def: '1.0');
   final String? rawOpacity = getAttribute(el, 'opacity');
+
   double opacity = parseDouble(rawFillOpacity)!.clamp(0.0, 1.0).toDouble();
   if (rawOpacity != '') {
     opacity *= parseDouble(rawOpacity)!.clamp(0.0, 1.0);
   }
 
   if (rawFill.startsWith('url')) {
+    // NOTE: default white is to fix up our "patttern" golden test.
+    // where we have a pattern, but we interpret it as having a
+    // white fill, because we do not understand pattern.
+    // ignoring the pattern is better, in that case
+    // maybe this applies to strokes too, not explored
     return _getDefinitionPaint(
       key,
       PaintingStyle.fill,
@@ -333,6 +343,7 @@ DrawablePaint? parseFill(
       definitions,
       bounds!,
       opacity: opacity,
+      defaultWhite: false,
     );
   }
   if (rawFill == '' && parentFill == DrawablePaint.empty) {
