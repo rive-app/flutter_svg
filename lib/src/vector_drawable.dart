@@ -258,6 +258,9 @@ class DrawablePaint {
       a.style ?? b!.style,
       color: a.color ?? b!.color,
       shader: a.shader ?? b!.shader,
+      // uf we probably want to think about this a little but lets see where this takes us.
+      // as these merge together we might want a tag for "us" being explicit when it comes to merging, and
+      lateShader: a.lateShader ?? b!.lateShader,
       blendMode: a.blendMode ?? b!.blendMode,
       colorFilter: a.colorFilter ?? b!.colorFilter,
       isAntiAlias: a.isAntiAlias ?? b!.isAntiAlias,
@@ -351,7 +354,7 @@ class DrawablePaint {
     if (maskFilter != null) {
       paint.maskFilter = maskFilter;
     }
-    if (shader != null && shader is! LateShader) {
+    if (shader != null) {
       paint.shader = shader;
     }
     if (strokeCap != null) {

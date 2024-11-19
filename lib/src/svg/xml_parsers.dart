@@ -200,7 +200,8 @@ DrawablePaint _getDefinitionPaint(
   double? strokeMiterLimit,
   StrokeCap? strokeCap,
   StrokeJoin? strokeJoin,
-  bool defaultWhite = true,
+  // currently always false, maybe kill..
+  bool defaultWhite = false,
 }) {
   final Shader? shader = definitions.getShader(iri, bounds);
   final Color? color = (opacity != null && defaultWhite)
