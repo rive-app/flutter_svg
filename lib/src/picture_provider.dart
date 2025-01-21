@@ -6,7 +6,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui'
-    show BlendMode, Color, ColorFilter, Locale, Rect, TextDirection, hashValues;
+    show BlendMode, Color, ColorFilter, Locale, Rect, TextDirection;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -150,7 +150,7 @@ class PictureConfiguration {
 
   @override
   int get hashCode =>
-      hashValues(bundle, locale, viewBox, platform, colorFilter);
+      Object.hash(bundle, locale, viewBox, platform, colorFilter);
 
   @override
   String toString() {
@@ -415,7 +415,7 @@ class AssetBundlePictureKey {
   }
 
   @override
-  int get hashCode => hashValues(bundle, name, colorFilter);
+  int get hashCode => Object.hash(bundle, name, colorFilter);
 
   @override
   String toString() =>
@@ -542,7 +542,7 @@ class NetworkPicture extends PictureProvider<NetworkPicture> {
   }
 
   @override
-  int get hashCode => hashValues(url.hashCode, colorFilter);
+  int get hashCode => Object.hash(url.hashCode, colorFilter);
 
   @override
   String toString() =>
@@ -616,7 +616,7 @@ class FilePicture extends PictureProvider<FilePicture> {
   }
 
   @override
-  int get hashCode => hashValues(file.path.hashCode, colorFilter);
+  int get hashCode => Object.hash(file.path.hashCode, colorFilter);
 
   @override
   String toString() =>
@@ -687,7 +687,7 @@ class MemoryPicture extends PictureProvider<MemoryPicture> {
   }
 
   @override
-  int get hashCode => hashValues(bytes.hashCode, colorFilter);
+  int get hashCode => Object.hash(bytes.hashCode, colorFilter);
 
   @override
   String toString() => '$runtimeType(${describeIdentity(bytes)})';
@@ -759,7 +759,7 @@ class StringPicture extends PictureProvider<StringPicture> {
   }
 
   @override
-  int get hashCode => hashValues(string.hashCode, colorFilter);
+  int get hashCode => Object.hash(string.hashCode, colorFilter);
 
   @override
   String toString() =>
@@ -901,7 +901,7 @@ class ExactAssetPicture extends AssetBundlePictureProvider {
   }
 
   @override
-  int get hashCode => hashValues(keyName, bundle, colorFilter);
+  int get hashCode => Object.hash(keyName, bundle, colorFilter);
 
   @override
   String toString() =>

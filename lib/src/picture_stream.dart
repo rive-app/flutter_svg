@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:async';
-import 'dart:ui' show Picture, Rect, hashValues, Size;
+import 'dart:ui' show Picture, Rect, Size;
 
 import 'package:flutter/foundation.dart';
 
@@ -45,7 +45,7 @@ class PictureInfo {
   final Size size;
 
   @override
-  int get hashCode => hashValues(picture, viewport, size);
+  int get hashCode => Object.hash(picture, viewport, size);
 
   @override
   bool operator ==(Object other) {
