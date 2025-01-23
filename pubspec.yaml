@@ -8,10 +8,7 @@ dependencies:
     sdk: flutter
   logging: ^1.0.0
   meta: ^1.3.0
-  path_drawing:
-    git:
-      url: https://github.com/rive-app/flutter_path_drawing.git
-      ref: flutter_v3.27.0
+  path_drawing: ^1.0.1
   vector_math: ^2.1.0
 
   xml: ^6.0.0
