@@ -1219,6 +1219,12 @@ class RivePath implements Path {
 
   @override
   Path shift(Offset offset) => _nativePath.shift(offset);
+
+  @override
+  void addRSuperellipse(RSuperellipse rsuperellipse) {
+    _log.warning(
+        'Attempting to add a superrellipse is currently not supported');
+  }
 }
 
 class RivePathProxy extends FlutterPathProxy {
