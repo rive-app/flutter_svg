@@ -137,8 +137,10 @@ CircularIntervalList<double>? parseDashArray(
   }
 
   final List<String> parts = rawDashArray!.split(RegExp(r'[ ,]+'));
-  return CircularIntervalList<double>(
-      parts.map((String part) => parseDouble(part)!).toList());
+  return SvgDashArray(
+    parts.map((String part) => parseDouble(part)!).toList(),
+    hasPercentage: parts.any((String part) => part.endsWith('%')),
+  );
 }
 
 /// Parses a @stroke-dashoffset into a [DashOffset].
@@ -152,9 +154,9 @@ DashOffset? parseDashOffset(List<XmlEventAttribute>? attributes) {
     final double percentage =
         parseDouble(rawDashOffset.substring(0, rawDashOffset.length - 1))! /
             100;
-    return DashOffset.percentage(percentage);
+    return SvgDashOffset.percentage(percentage);
   } else {
-    return DashOffset.absolute(parseDouble(rawDashOffset)!);
+    return SvgDashOffset.absolute(parseDouble(rawDashOffset)!);
   }
 }
 

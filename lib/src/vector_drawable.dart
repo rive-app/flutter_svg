@@ -103,6 +103,37 @@ class ClipPath {
   String get name => idUrlReference.firstMatch(id)?.group(1) ?? id;
 }
 
+/// A [CircularIntervalList] that keeps its parsed values readable.
+class SvgDashArray extends CircularIntervalList<double> {
+  /// Creates a dash array from parsed `stroke-dasharray` values.
+  SvgDashArray(this.values, {this.hasPercentage = false}) : super(values);
+
+  /// Dash and gap lengths in the order they were written.
+  final List<double> values;
+
+  /// Whether any value was a percentage, which [values] doesn't resolve.
+  final bool hasPercentage;
+}
+
+/// A [DashOffset] that keeps its parsed value readable.
+class SvgDashOffset extends DashOffset {
+  /// Creates an offset in user units.
+  SvgDashOffset.absolute(this.value)
+      : isPercentage = false,
+        super.absolute(value);
+
+  /// Creates an offset from a percentage, as a 0-1 fraction.
+  SvgDashOffset.percentage(this.value)
+      : isPercentage = true,
+        super.percentage(value);
+
+  /// The parsed offset.
+  final double value;
+
+  /// Whether [value] came from a percentage.
+  final bool isPercentage;
+}
+
 /// Styling information for vector drawing.
 ///
 /// Contains [Paint], [Path], dashing, transform, and text styling information.
@@ -128,7 +159,7 @@ class DrawableStyle {
   /// This will not result in a drawing operation, but will clear out
   /// inheritance.
   static final CircularIntervalList<double> emptyDashArray =
-      CircularIntervalList<double>(const <double>[]);
+      SvgDashArray(const <double>[]);
 
   /// If not `null` and not `identical` with [DrawablePaint.empty], will result in a stroke
   /// for the rendered [DrawableShape]. Drawn __after__ the [fill].

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:test/test.dart';
 import 'package:xml/xml_events.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_svg/src/svg/xml_parsers.dart';
 import 'package:flutter_svg/src/utilities/xml.dart';
 
@@ -123,9 +124,29 @@ void main() {
         parseEvents('<stroke stroke-dashoffset="20%" />').first
             as XmlStartElementEvent;
 
-    // TODO(dnfield): DashOffset is completely opaque right now, maybe expose the raw value?
-    expect(parseDashOffset(abs.attributes), isNotNull);
-    expect(parseDashOffset(pct.attributes), isNotNull);
+    final SvgDashOffset absOffset =
+        parseDashOffset(abs.attributes)! as SvgDashOffset;
+    expect(absOffset.value, 20);
+    expect(absOffset.isPercentage, isFalse);
+    final SvgDashOffset pctOffset =
+        parseDashOffset(pct.attributes)! as SvgDashOffset;
+    expect(pctOffset.value, 0.2);
+    expect(pctOffset.isPercentage, isTrue);
+  });
+
+  test('@stroke-dasharray tests', () {
+    SvgDashArray? parse(String value) {
+      final XmlStartElementEvent el =
+          parseEvents('<stroke stroke-dasharray="$value" />').first
+              as XmlStartElementEvent;
+      return parseDashArray(el.attributes) as SvgDashArray?;
+    }
+
+    expect(parse('16 8')!.values, <double>[16, 8]);
+    expect(parse('5, 3,2')!.values, <double>[5, 3, 2]);
+    expect(parse('16 8')!.hasPercentage, isFalse);
+    expect(parse('10% 5')!.hasPercentage, isTrue);
+    expect(parse('none')!.values, isEmpty);
   });
 
   test('font-weight tests', () {
